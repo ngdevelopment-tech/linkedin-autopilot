@@ -78,8 +78,7 @@ flowchart LR
 git clone https://github.com/ngdevelopment-tech/linkedin-autopilot.git
 cd linkedin-autopilot
 py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt pytest
-.\.venv\Scripts\python.exe -m playwright install chromium
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 Copy-Item .env.template .env
 .\.venv\Scripts\python.exe demo.py
 .\.venv\Scripts\python.exe -m pytest -q
@@ -92,8 +91,7 @@ git clone https://github.com/ngdevelopment-tech/linkedin-autopilot.git
 cd linkedin-autopilot
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt pytest
-python -m playwright install chromium
+pip install -r requirements-dev.txt
 cp .env.template .env
 python demo.py
 python -m pytest -q
@@ -101,7 +99,9 @@ python -m pytest -q
 
 `demo.py` runs a **local reply showcase** and never contacts LinkedIn. To try the browser worker after reviewing the logs and policies, run `python bot.py`, sign in inside the opened Chromium window and keep `DRY_RUN=true`. The signed-in profile is stored locally; never commit it.
 
-The CI workflow validates Python compilation, injected JavaScript syntax, the Railway entrypoint and the unit tests. Live LinkedIn sending is deliberately not part of CI.
+For a **signed-in browser run** after finishing the offline checks, install Chromium with `python -m playwright install chromium` (or the virtual environment's Python on Windows), then start `python bot.py`. On Linux, Playwright may also require OS dependencies: `python -m playwright install --with-deps chromium`. Keep `DRY_RUN=true` until message direction and delivery are verified.
+
+The CI workflow validates Python compilation, injected JavaScript syntax, the Railway entrypoint, the local showcase and the unit tests. Live LinkedIn sending is deliberately not part of CI.
 
 ## Railway hosting
 
@@ -141,6 +141,7 @@ My next priorities are safer author detection, measurable response latency, reli
 | `replies.py` | My reply context, local fallback and optional model integration |
 | `demo.py` | Offline reply showcase for reviewers |
 | `tests/` | Behavior, persistence and packaging checks |
+| `requirements-dev.txt` | One-command install for the local showcase and tests |
 | `deploy/entrypoint.sh` | Railway runtime; graphical sign-in or headless monitoring |
 | `.env.template` | Local configuration starter with no credentials |
 | `DEPLOYMENT.md` | Railway setup, troubleshooting and recovery |
