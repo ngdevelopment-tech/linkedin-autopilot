@@ -85,7 +85,7 @@ The brief was time-sensitive, and I wanted to build a complete working service r
 
 | Area | Evidence so far | What it proves |
 | --- | --- | --- |
-| GitHub Actions | 35 offline tests passed, plus compilation and browser-script syntax checks | The deterministic logic and packaged source meet the tested contracts |
+| GitHub Actions | offline tests passed, plus compilation and browser-script syntax checks | The deterministic logic and packaged source meet the tested contracts |
 | Railway | Docker builds and connected deployment with persistent volume | The project can be deployed and its state retained across releases |
 | LinkedIn login | Authenticated navigation in runtime logs | The stored browser session can be reused |
 | Inbox detection | Real conversations discovered; inbound and outbound directions reported | The current DOM reader can recognize some real message events |
