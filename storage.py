@@ -22,3 +22,16 @@ class State:
     def mark(self, key, status="done"):
         self.db.execute("INSERT INTO handled (key,status) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET status=excluded.status", (key,status))
         self.db.commit()
+
+    def claim_thread(self, thread_id):
+        """Durable at-most-one send attempt per thread for controlled testing.
+
+        A successful claim remains held even if LinkedIn times out after clicking
+        Send. This intentionally favors missing a reply over duplicate messages.
+        """
+        key = self.fingerprint("thread-send-once", thread_id, "v1")
+        cursor = self.db.execute(
+            "INSERT OR IGNORE INTO handled (key,status) VALUES (?,?)",
+            (key, "send-attempted"))
+        self.db.commit()
+        return cursor.rowcount == 1
