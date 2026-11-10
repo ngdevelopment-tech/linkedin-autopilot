@@ -31,7 +31,7 @@ EXTRACT_THREAD = r"""() => {
       !!node.querySelector('.msg-s-message-group__profile-link--outbound');
    const body = node.querySelector('.msg-s-event-listitem__body, .msg-s-event-listitem__message-bubble, .msg-s-message-group__message, .msg-s-event-listitem__message-body');
    const text = (body?.innerText || '').trim();
-   const attachment = !!node.querySelector('[class*="attachment"], [class*="media"], [class*="file"]');
+   const attachment = !!node.querySelector('a[href*="/attachment/"], a[href*="/dms/document/"], [data-attachment-id], .msg-s-event-listitem__attachment');
    return {text, mine, attachment, id:node.getAttribute('data-event-urn') || node.id || ''};
  }).filter(item => item.text || item.attachment);
 }"""
@@ -155,6 +155,10 @@ def inbox_pass(page, state, baseline=False):
                 continue
             if DRY:
                 print("[dry-run] Inbound message identified; reply not sent", flush=True)
+                continue
+            # Claim the thread before clicking Send; do not retry on ambiguity.
+            if not state.claim_thread(thread):
+                print("[message] thread already has live send attempt; skipping", flush=True)
                 continue
             state.mark(key, "pending")
             if send_reply(page, reply):
