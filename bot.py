@@ -14,6 +14,7 @@ from message_policy import inbound_candidate, event_identity
 
 load_dotenv()
 POLL = max(3.0, float(os.getenv("POLL_SECONDS", "5")))
+INVITATION_POLL = max(45.0, float(os.getenv("INVITATION_POLL_SECONDS", "120")))
 MAX_THREADS = max(1, min(100, int(os.getenv("MAX_THREADS", "40"))))
 DRY = os.getenv("DRY_RUN", "true").lower() == "true"
 BASELINE = os.getenv("BASELINE_ON_START", "true").lower() == "true"
@@ -299,24 +300,37 @@ def main():
         elif BASELINE:
             print("[startup] Persistent baseline already complete; resuming monitoring", flush=True)
         previewed = set()
+        next_invitation_scan = 0.0
+        browser_errors = 0
         while True:
             try:
-                accept_invitations(page)
+                # Invitation requests have a longer deadline; don't reload the whole
+                # LinkedIn network page every time the inbox is checked.
+                now = time.monotonic()
+                if now >= next_invitation_scan:
+                    accept_invitations(page)
+                    next_invitation_scan = time.monotonic() + INVITATION_POLL
                 inbox_pass(page, state, previewed=previewed)
+                browser_errors = 0
             except KeyboardInterrupt:
                 break
             except Exception as exc:
                 print(f"[loop] {type(exc).__name__}: {str(exc)[:120]}", flush=True)
-                if "Target" in str(exc) or "crashed" in str(exc).lower():
+                error = str(exc).lower()
+                if "target" in error or "crash" in error or "page closed" in error:
+                    browser_errors += 1
                     try:
                         page.close()
                     except Exception:
                         pass
+                    if browser_errors >= 3:
+                        raise RuntimeError("Browser repeatedly unavailable; restarting worker") from exc
+                    time.sleep(min(5, browser_errors * 2))
                     page = browser.new_page()
                     try:
                         page.goto("https://www.linkedin.com/messaging/", wait_until="domcontentloaded", timeout=20000)
-                    except Exception:
-                        pass
+                    except Exception as nav_exc:
+                        print(f"[loop] Browser recovery navigation: {type(nav_exc).__name__}", flush=True)
             time.sleep(POLL)
         browser.close()
 
