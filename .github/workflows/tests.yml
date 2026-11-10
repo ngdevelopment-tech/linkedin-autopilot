@@ -15,14 +15,16 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt pytest
+        run: python -m pip install -r requirements-dev.txt
       - name: Compile Python source
-        run: python -m compileall -q bot.py replies.py storage.py message_policy.py
+        run: python -m compileall -q bot.py replies.py storage.py message_policy.py demo.py
       - name: Validate browser-injected JavaScript syntax
         run: |
           python -c "from bot import EXTRACT_THREAD; open('/tmp/linkedin-extract.js', 'w').write('const parser = ' + EXTRACT_THREAD + ';')"
           node --check /tmp/linkedin-extract.js
       - name: Check Railway entrypoint shell
         run: bash -n deploy/entrypoint.sh
+      - name: Run reply showcase
+        run: python demo.py
       - name: Run offline tests
         run: python -m pytest -q
