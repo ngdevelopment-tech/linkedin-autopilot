@@ -2,6 +2,7 @@
 import os
 import sys
 import time
+from hashlib import sha256
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -22,6 +23,7 @@ STATE_DB = os.getenv("STATE_DB_PATH", ".state/messages.db")
 UNATTENDED = os.getenv("UNATTENDED", "false").lower() == "true"
 LOGIN_TIMEOUT = max(60, int(os.getenv("LOGIN_TIMEOUT_SECONDS", "900")))
 HEADLESS = os.getenv("BROWSER_HEADLESS", "false").lower() == "true"
+TEST_MESSAGE_SHA256 = os.getenv("TEST_MESSAGE_SHA256", "").strip().lower()
 
 EXTRACT_THREAD = r"""() => {
  const main = document.querySelector('.msg-s-message-list, .msg-thread, [data-view-name="message-list"]') || document;
@@ -185,6 +187,8 @@ def inbox_pass(page, state, baseline=False):
             last = inbound_candidate(events)
             if last is None:
                 continue
+            if TEST_MESSAGE_SHA256 and sha256(last["text"].strip().casefold().encode("utf-8")).hexdigest() == TEST_MESSAGE_SHA256:
+                print("[test] Exact supplied inbound message matched; no contents logged", flush=True)
             thread = page.url.split("?")[0]
             identity = event_identity(events)
             if identity.startswith("visible:"):
