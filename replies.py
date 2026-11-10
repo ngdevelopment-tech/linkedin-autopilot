@@ -69,7 +69,7 @@ def fallback(text: str, has_attachment: bool = False) -> str:
     if any(k in low for k in ("nori agency", "memorift", "autorent", "deals on wheels", "ecocollect", "libatourism")):
         return "That's one of the projects featured in my portfolio. What would you like to know about it?"
     if any(k in low for k in ("currently working on", "working on lately", "recent projects", "recent work", "what projects", "projects are you")):
-        return "I work on web and mobile products and AI workflows. A few examples are on my portfolio: https://ngdevelopment-tech.github.io/naimgerges/. Which area interests you?"
+        return "I work on web and mobile products and AI workflows. You can see some of that work on my portfolio: https://ngdevelopment-tech.github.io/naimgerges/. Which area interests you?"
     if "salary" in low or "how much do you earn" in low:
         return "I keep personal salary details private. Happy to share more context about my work, though."
     if any(k in low for k in ("price", "rate", "budget", "quote", "cost")):
