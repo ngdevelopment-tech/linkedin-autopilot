@@ -1,16 +1,16 @@
-# Deployment guide
+# Deployment
 
-## Reality of continuous hosting
+## Local runtime
 
-The worker needs a continuously running browser session while the competition is being tested. GitHub hosts the source and runs code tests; it does not provide an always-on browser process. Railway can run a container, but trial memory limits, pricing, and availability are plan-dependent. A Playwright Chromium process may exceed trial resources.
+The worker uses a persistent Playwright Chromium profile and a SQLite database. Both paths must be writable. Run a single worker instance per LinkedIn session.
 
-## Railway (project created, live login NOT configured)
+Windows setup and configuration are documented in [README.md](README.md).
 
-An existing private Railway project named `linkedin-autopilot` contains a service `linkedin-worker` and a 500 MB persistent volume mounted at `/data`. The service must be linked to this repository. The Dockerfile uses the official Playwright Python image and runs a visible Chromium browser under Xvfb.
+## Container runtime
 
-**Security requirement:** The container's noVNC endpoint on port 6080 is currently unauthenticated and MUST NOT be exposed using a public Railway domain. It was included only as a starting point for a private login route. Never generate a public domain or expose TCP port 6080 in this state. Railway does not supply an ordinary inbound SSH tunnel like a VPS. This deployment remains blocked until a private, authenticated login strategy is implemented and tested.
+The Docker image uses the official Playwright Python base, installs display services, and runs Chromium with a persistent profile.
 
-The service should mount `/data` and use these variables, entered into Railway's private variables UI:
+Required environment:
 
 ```text
 BROWSER_PROFILE_DIR=/data/browser
@@ -21,20 +21,22 @@ BASELINE_ON_START=true
 POLL_SECONDS=5
 ```
 
-OpenAI API keys are optional and must be set only through private environment variables. Never paste credentials into project files, GitHub Actions or support chats. Disable DRY_RUN only after inspecting live invitation and messaging behavior.
+Mount persistent storage at `/data`. Keep account credentials and API keys in the hosting provider's private environment configuration. Do not commit runtime data.
 
-## Local Windows run (recommended for initial verification)
+## Railway
 
-1. Install Python 3.11 or newer.
-2. Extract or clone the repository and open a terminal in its root directory.
-3. Run `py -m venv .venv`.
-4. Run `.venv\\Scripts\\python.exe -m pip install -r requirements.txt`.
-5. Run `.venv\\Scripts\\python.exe -m playwright install chromium`.
-6. Copy `.env.example` to `.env`; keep `DRY_RUN=true` initially.
-7. Run `.venv\\Scripts\\python.exe bot.py`.
-8. Log into LinkedIn manually in Chromium and press Enter in the terminal.
-9. Test with an account you control, then enable sending only if the user interface and safety checks work.
+The service `linkedin-worker` is configured in project `linkedin-autopilot`, with a 500 MB persistent volume mounted at `/data`. Its source is the repository's `main` branch.
 
-## Before competition submission
+The image exposes a noVNC service internally on port 6080; this port is **unauthenticated**. Do not attach a public HTTP domain or TCP proxy to it. An authenticated private browser-access method is required for remote sign-in. Railway containers do not provide standard inbound SSH tunnels.
 
-Test acceptance, a first inbound DM, multiple follow-up DMs, a restart, and attachment/unknown-message handling. Observe actual send confirmations and inspect logs. Keep the runtime online until the competition status confirms that testing is finished. Verify with the organizers that cloud-hosted execution is allowed: their instructions describe running the bot on your own computer.
+The browser worker requires a valid signed-in session before unattended processing can run. A local interactive run is the simplest approach for validating selectors.
+
+## Health and troubleshooting
+
+Inspect container build and runtime logs for dependency errors, sign-in expiry, selector mismatches, and Chromium memory pressure. A successful container start alone does not demonstrate successful invitation or message processing.
+
+For outbound-send uncertainty, inspect the conversation before resetting a `pending` fingerprint. Avoid starting two instances with the same profile.
+
+## Resource requirements
+
+Browser memory consumption varies with the site and number of conversations. Test container memory before relying on small free-tier plans. A worker only runs while the host is online and its deployment remains active.
