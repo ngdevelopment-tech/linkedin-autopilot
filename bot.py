@@ -276,6 +276,7 @@ def main():
         browser = playwright.chromium.launch_persistent_context(
             PROFILE, headless=HEADLESS, viewport={"width":960,"height":640},
             args=["--disable-notifications", "--disable-gpu", "--renderer-process-limit=2",
+                  "--disable-dev-shm-usage", "--disable-background-networking",
                   "--disk-cache-size=8388608", "--media-cache-size=1048576",
                   "--disable-breakpad", "--disable-extensions"]
         )
