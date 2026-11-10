@@ -14,6 +14,7 @@ if [[ -n "${BROWSER_ACCESS_PASSWORD:-}" ]]; then
   printf '%s:%s\n' "${BROWSER_ACCESS_USER:-naim}" "$AUTH_HASH" >/tmp/browser.htpasswd
   chown root:www-data /tmp/browser.htpasswd
   chmod 640 /tmp/browser.htpasswd
+  WS_TOKEN="$(openssl rand -hex 32)"
 
   cat >/tmp/browser-nginx.conf <<EOF
 user www-data;
@@ -32,9 +33,20 @@ http {
     listen ${PORT:-8080};
     server_name _;
     add_header Cache-Control "no-store" always;
+    location = /websockify {
+      auth_basic off;
+      if (\$cookie_browser_session != "$WS_TOKEN") { return 403; }
+      proxy_pass http://127.0.0.1:6080/;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade \$http_upgrade;
+      proxy_set_header Connection "upgrade";
+      proxy_read_timeout 86400;
+      proxy_buffering off;
+    }
     location / {
       auth_basic "Browser access";
       auth_basic_user_file /tmp/browser.htpasswd;
+      add_header Set-Cookie "browser_session=$WS_TOKEN; Secure; HttpOnly; SameSite=Strict; Path=/" always;
       proxy_pass http://127.0.0.1:6080;
       proxy_http_version 1.1;
       proxy_set_header Upgrade \$http_upgrade;
