@@ -19,7 +19,7 @@ I care about the whole delivery—code, behavior, deployment, security, testing 
 - **Running on Railway:** a single headless Playwright worker using the LinkedIn session saved on its persistent volume.
 - **Safety mode:** `DRY_RUN=true`; no invitations are accepted and no messages are sent while I finish verification.
 - **Sender filter:** none. The Charbel-only restriction used during the controlled test has been cleared.
-- **Tests:** 35 offline checks passed on the latest verified CI run, including Python compilation and browser-script syntax validation.
+- **Tests:** automated offline checks passed on the latest verified CI run, including Python compilation and browser-script syntax validation.
 - **Still open:** a fresh end-to-end live test of message delivery and invitation acceptance, and longer-term stability within Railway's trial memory allowance.
 - **Reply intelligence:** the hosted worker currently uses the local reply engine. Optional contextual model replies require a privately supplied `OPENAI_API_KEY`.
 
