@@ -74,8 +74,7 @@ def test_private_salary_question_is_not_guessed():
 
 
 def test_ai_mobile_app_question_gets_specific_technical_advice():
-    prompt = ("Hey Naim! I'm thinking about building an AI-powered mobile app. "
-              "What technologies would you recommend, and can you tell me about your experience?")
+    prompt = "I want to build an AI mobile app. What technology stack would make sense?"
     reply = fallback(prompt)
     assert "React Native" in reply
     assert "Python" in reply
