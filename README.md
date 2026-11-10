@@ -1,125 +1,136 @@
 # LinkedIn AutoPilot
+### Inbound LinkedIn automation • Playwright • Python • SQLite • Railway
 
-Python automation service for inbound LinkedIn connection requests and direct messages.
+I built **LinkedIn AutoPilot** to handle incoming connection invitations and respond to incoming LinkedIn messages on my own account, while never initiating conversations or sending connection requests. The challenge is not simply clicking Send: it is understanding the latest inbound message, speaking naturally, staying within the facts I can verify, and avoiding duplicate responses after a timeout or restart.
+
+**My LinkedIn:** https://www.linkedin.com/in/naim-gerges-892591271/  
+**My portfolio:** https://ngdevelopment-tech.github.io/naimgerges/  
+**Deployment:** Railway, connected to this repository's `main` branch.
+
+> **Status and honesty:** The code and offline tests demonstrate message policy, reply fallbacks and persistence. LinkedIn browser selectors and end-to-end sending are integration-dependent and must be validated against a signed-in account. The current hosted deployment is in `DRY_RUN=true` until safe detection is verified. No test run is a guarantee of uninterrupted uptime or delivery.
 
 ## Features
 
-- Reviews the incoming invitation queue and accepts pending requests.
-- Monitors existing message conversations and responds only to inbound messages.
-- Generates concise contextual replies using a configurable language-model provider; deterministic fallback responses are available.
-- Tracks message-processing fingerprints in SQLite to avoid repeating completed operations.
-- Rechecks conversation state before sending and verifies outbound messages where possible.
-- Supports dry-run mode, sender allowlists, restart persistence, and adjustable scanning.
-- Runs locally with Playwright Chromium or in a Linux container.
+- **Inbound only:** never sends invitations, starts a DM or bulk-messages contacts.
+- **Connection requests:** reviews and accepts received invitations when live mode is explicitly enabled.
+- **Messages:** checks recent conversations, filters for confirmed inbound messages, and replies using recent thread context.
+- **Human tone:** short first-person responses as Naim, without pretending to know unpublished personal facts.
+- **Unusual inputs:** short/empty texts, emojis, Arabic, French, Spanish, long messages, links, attachments, rude messages and unverifiable questions.
+- **Two reply modes:** optional OpenAI-powered conversational replies; offline deterministic fallback if no API key is configured or the provider fails.
+- **Safety:** per-inbound-message atomic SQLite claims, durable across restarts; never automatically resend a message after an uncertain Send result.
+- **Operations:** `DRY_RUN` by default, optional sender allowlist for tests, persistent signed-in browser profile, bounded scans, low-memory headless mode and CI tests.
 
-## Architecture
+## How it works
 
 ```text
-Playwright browser
-  ├── Incoming invitations → Invitation handler
-  └── Existing conversations → Inbound event filter
-                                ├── SQLite processing state
-                                ├── Reply engine
-                                └── Send and UI confirmation
+                      LinkedIn (signed-in Chromium)
+                                 |
+                      +----------+----------+
+                      |                     |
+              Received invitations    Messaging inbox
+                      |                     |
+              Accept (if live)       Load conversation
+                                            |
+                                   Identify latest author
+                                     /            \
+                                Not inbound      Inbound
+                                   |                |
+                                  Skip      Stable event identity
+                                                    |
+                                          SQLite atomic claim
+                                                    |
+                                           Contextual reply
+                                           (AI or fallback)
+                                                    |
+                                            Send + verify
+                                                    |
+                                          Done / uncertain
 ```
 
-## Repository structure
+If the direction is unknown, the bot skips that event. If LinkedIn exposes no native event ID, a deterministic visible-history signature is used; that fallback is weaker than a platform event ID and is documented in the limitations.
 
-| Path | Description |
-| --- | --- |
-| `bot.py` | Browser lifecycle, invitations, conversations, and message handling |
-| `replies.py` | Message-response strategy and fallback behavior |
-| `storage.py` | Persistent message fingerprints and processing states |
-| `tests/` | Unit tests for response behavior and persistence |
-| `requirements.txt` | Python dependencies |
-| `Dockerfile` | Playwright browser container |
-| `deploy/entrypoint.sh` | Container display startup |
-| `.env.example` | Configuration reference |
-| `DEPLOYMENT.md` | Runtime configuration and infrastructure |
-| `SECURITY.md` | Private data and access controls |
-
-## Requirements
-
-- Python 3.11 or newer
-- Chromium installed through Playwright
-- A LinkedIn account with access to incoming invitations and messages
-- Optional response-generation API credential
-
-## Windows installation
-
-Open PowerShell in the repository directory:
+## Quick start (Windows PowerShell)
 
 ```powershell
-py -m venv .venv
+git clone https://github.com/ngdevelopment-tech/linkedin-autopilot.git
+cd linkedin-autopilot
+py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m playwright install chromium
 Copy-Item .env.example .env
 .\.venv\Scripts\python.exe bot.py
 ```
 
-Sign in using the Chromium browser window and return to PowerShell. Press Enter after the LinkedIn feed is visible. The session is kept in the configured browser profile directory.
+The first run opens a Chromium window. I sign in directly on LinkedIn, return to PowerShell and press Enter when the inbox is available. No LinkedIn password belongs in `.env` or source code. The browser profile stays on disk for the next run.
 
-The default `DRY_RUN=true` logs proposed actions without modifying the account. To enable actual invitation acceptance and message sending, change it to `false` after checking the browser selectors.
+**Run locally on macOS/Linux:**
+
+```bash
+git clone https://github.com/ngdevelopment-tech/linkedin-autopilot.git
+cd linkedin-autopilot
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m playwright install chromium
+cp .env.example .env
+python bot.py
+```
+
+The default `DRY_RUN=true` previews detected events without accepting invitations or sending messages. Keep it enabled while validating selectors. Set `DRY_RUN=false` only after verifying live account behavior. **Do not start two workers using the same browser profile.**
+
+## Run the tests
+
+```bash
+python -m pip install -r requirements.txt pytest
+python -m compileall -q bot.py replies.py storage.py message_policy.py
+python -m pytest -q
+```
+
+GitHub Actions runs Python compilation, shell syntax validation, and the unit tests on each push and pull request. Tests cover outbound/inbound gating, repeated text, distinct messages in a thread, cross-thread deduplication, restart persistence and unusual-language reply fallbacks. They do **not** log in to LinkedIn or send test messages.
 
 ## Configuration
 
-| Setting | Default | Description |
+| Variable | Default | Purpose |
 | --- | --- | --- |
-| `DRY_RUN` | `true` | Preview actions without sending or accepting |
-| `POLL_SECONDS` | `5` | Delay after a complete scan |
-| `MAX_THREADS` | `40` | Conversations examined per scan |
-| `BASELINE_ON_START` | `true` | Register existing inbound messages as previously seen |
-| `ALLOWED_SENDER_NAMES` | empty | Optional comma-separated sender restriction |
-| `OPENAI_API_KEY` | empty | Optional reply-engine API credential |
-| `OPENAI_MODEL` | `gpt-4.1-mini` | Model used when the external response service is configured |
-| `BROWSER_PROFILE_DIR` | `.browser-profile` | Persistent browser profile |
-| `STATE_DB_PATH` | `.state/messages.db` | SQLite database location |
-| `UNATTENDED` | `false` | Browser sign-in without waiting for terminal input |
-| `LOGIN_TIMEOUT_SECONDS` | `900` | Unattended browser sign-in deadline |
+| `DRY_RUN` | `true` | Preview only; never send or accept |
+| `OPENAI_API_KEY` | empty | Enables AI replies; no key means local fallback |
+| `OPENAI_MODEL` | `gpt-4.1-mini` | Model for contextual replies |
+| `ALLOWED_SENDER_NAMES` | empty | Optional exact-name allowlist for controlled tests |
+| `POLL_SECONDS` | `5` | Delay after each scanning cycle |
+| `MAX_THREADS` | `40` | Upper bound of inbox conversations per cycle |
+| `BASELINE_ON_START` | `true` | Skip previously present inbound items on startup |
+| `BROWSER_HEADLESS` | `false` | Use non-graphical Chromium after login is saved |
+| `UNATTENDED` | `false` | Run without terminal login confirmation |
+| `BROWSER_PROFILE_DIR` | `.browser-profile` | Persistent login profile |
+| `STATE_DB_PATH` | `.state/messages.db` | Durable event claims |
+| `LOGIN_TIMEOUT_SECONDS` | `900` | Authentication wait period |
 
-The full scan includes navigation through conversations and may take longer than `POLL_SECONDS`. Set `BASELINE_ON_START` intentionally: existing inbound messages present during the initial scan are marked as seen when enabled.
+I use a dedicated Railway volume at `/data` for the Chromium profile and SQLite state, and turn on headless mode for lower runtime overhead. See [DEPLOYMENT.md](DEPLOYMENT.md) for the infrastructure, privacy setup, and recovery process.
 
-## Processing sequence
+## Project files
 
-1. Open the received-invitations page and process pending invitations.
-2. Inspect conversation entries in the message inbox.
-3. Skip conversations with no eligible inbound message.
-4. Check persistent state to avoid processing the same inbound event twice.
-5. Generate a short reply from the inbound message and recent conversation history.
-6. Recheck the conversation before sending.
-7. Send and look for an outbound UI confirmation.
-8. Record confirmed, pending, or preview processing status and repeat.
-
-## Response behavior
-
-| Incoming input | Offline fallback response |
+| File | Responsibility |
 | --- | --- |
-| `hello` | Hey! Good to hear from you. How's it going? |
-| `🙂` | Hey 😊 What's up? |
-| `مرحبا` | أهلاً! كيف فيني ساعدك؟ |
-| `bonjour` | Salut ! Comment puis-je t'aider ? |
-| `https://example.org` | Thanks for the link. What would you like me to focus on? |
-| File or image without text | Thanks for sending this. What would you like me to look at? |
-| Unknown question | Good question. Could you share a little more context? |
+| `bot.py` | Browser, inbox and invitation handling, send confirmation |
+| `message_policy.py` | Incoming-only gate and event identities |
+| `replies.py` | Naim's reply voice, optional AI and fallback |
+| `storage.py` | SQLite atomic per-message claims |
+| `tests/` | Reproducible offline behavior tests |
+| `deploy/entrypoint.sh` | Railway headless/graphical service startup |
+| `Dockerfile` | Playwright container with OS dependencies |
+| `.env.example` | Safe copyable configuration |
+| `DEPLOYMENT.md` | Railway deployment and troubleshooting |
+| `SUBMISSION.md` | Concise challenge submission note |
+| `SECURITY.md` | Credential, privacy and operational boundaries |
 
-With the optional reply service configured, replies can use recent conversation context. The fallback is deliberately generic and should not be used as evidence of sophisticated semantic understanding.
+## Known limitations
 
-## Tests
+- LinkedIn can change its DOM, virtualize messages or challenge a signed-in browser. Author detection and sending require real-account validation.
+- A visible-history event signature can change if LinkedIn reloads or reorders older events; the safest response to ambiguity is to skip, not to retry.
+- An uncertain Send is kept as `pending`; the bot does not automatically retry it. This prevents duplicate attempts but may miss a reply.
+- Messages with attachments can be acknowledged, but the bot does **not** inspect file or image contents.
+- The optional AI key is not included; without it, the local response engine cannot provide arbitrary deep semantic reasoning.
+- Chromium can exceed 512 MB RAM on demanding LinkedIn pages; the Railway Trial Plan may therefore not provide reliable continuous service.
+- UI selectors for received invitations and messages may require updates. This is a technical prototype using browser automation, not an official LinkedIn API integration.
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install pytest
-.\.venv\Scripts\python.exe -m pytest -q
-```
-
-The CI workflow runs syntax compilation and unit tests. Browser integration checks require a signed-in browser and controlled inbound test messages.
-
-## Operational limitations
-
-- LinkedIn interface changes can invalidate selectors.
-- File and image contents are not interpreted.
-- Unconfirmed sends are retained as pending rather than blindly repeated.
-- Offline responses do not provide factual answers about the account holder.
-- Hosted browser login requires a secure private access method; the container does not expose a remote desktop.
-- Chromium consumes memory and CPU, which may exceed small hosting allocations.
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) and [SECURITY.md](SECURITY.md) for infrastructure and private-data handling.
+**Built by Naim Gerges.** See [SUBMISSION.md](SUBMISSION.md) for the challenge-specific note.
