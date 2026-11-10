@@ -9,6 +9,7 @@ from playwright.sync_api import sync_playwright
 
 from replies import generate_reply
 from storage import State
+from message_policy import inbound_candidate, event_identity
 
 load_dotenv()
 POLL = max(3.0, float(os.getenv("POLL_SECONDS", "5")))
@@ -179,16 +180,14 @@ def inbox_pass(page, state, baseline=False):
                 thread_index = item.get("index")
                 print(f"[inbox] thread={thread_index} messages={len(events)} direction={direction} stable_id={stable_id}", flush=True)
             # A reply is safe only if authorship is positively identified as inbound.
-            if not events or events[-1]["direction"] != "inbound":
+            last = inbound_candidate(events)
+            if last is None:
                 continue
-            last = events[-1]
             thread = page.url.split("?")[0]
-            # Never use a shifting message count as the event identity.
-            # Without a stable event identifier, refuse to send to prevent duplicates.
-            if not last["id"]:
-                print("[inbox] inbound event lacks stable ID; skipping automatic reply", flush=True)
-                continue
-            key = State.fingerprint(thread, last["id"],
+            identity = event_identity(events)
+            if identity.startswith("visible:"):
+                print("[inbox] using local event fingerprint; no LinkedIn native ID", flush=True)
+            key = State.fingerprint(thread, identity,
                 last["text"] + (" [attachment]" if last["attachment"] else ""))
             if state.status(key):
                 continue
@@ -197,7 +196,7 @@ def inbox_pass(page, state, baseline=False):
                 continue
             reply = generate_reply(last["text"], events[:-1][-6:], last["attachment"])
             fresh = thread_messages(page)
-            if len(fresh) != len(events) or not fresh or fresh[-1]["direction"] != "inbound" or fresh[-1]["text"] != last["text"] or fresh[-1]["id"] != last["id"]:
+            if len(fresh) != len(events) or not fresh or fresh[-1]["direction"] != "inbound" or fresh[-1]["text"] != last["text"] or event_identity(fresh) != identity:
                 continue
             if DRY:
                 print("[dry-run] Inbound message identified; reply not sent", flush=True)
@@ -254,6 +253,7 @@ def main():
     print(f"Inbound LinkedIn worker starting: headless={HEADLESS}", flush=True)
     if DRY:
         print("DRY_RUN enabled: no invitations accepted or messages sent", flush=True)
+    print("[reply] engine=" + ("AI" if os.getenv("OPENAI_API_KEY", "").strip() else "local fallback"), flush=True)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch_persistent_context(
             PROFILE, headless=HEADLESS, viewport={"width":960,"height":640},
