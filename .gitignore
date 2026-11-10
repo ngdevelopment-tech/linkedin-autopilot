@@ -1,6 +1,6 @@
 .env
 .env.*
-!.env.example
+!.env.template
 .browser-profile/
 .state/
 __pycache__/
