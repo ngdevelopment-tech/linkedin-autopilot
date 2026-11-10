@@ -27,7 +27,7 @@ Mount persistent storage at `/data`. Keep account credentials and API keys in th
 
 The service `linkedin-worker` is configured in project `linkedin-autopilot`, with a 500 MB persistent volume mounted at `/data`. Its source is the repository's `main` branch.
 
-The image exposes a noVNC service internally on port 6080; this port is **unauthenticated**. Do not attach a public HTTP domain or TCP proxy to it. An authenticated private browser-access method is required for remote sign-in. Railway containers do not provide standard inbound SSH tunnels.
+The container intentionally exposes no browser-login endpoint. Configure an authenticated private access method before remote sign-in. Railway containers do not provide standard inbound SSH tunnels.
 
 The browser worker requires a valid signed-in session before unattended processing can run. A local interactive run is the simplest approach for validating selectors.
 
