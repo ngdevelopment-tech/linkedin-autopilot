@@ -190,7 +190,20 @@ def main():
                     except Exception as exc:
                         print(f"[session] Tab temporarily unavailable: {type(exc).__name__}", flush=True)
                 else:
-                    page.wait_for_timeout(2500) if not page.is_closed() else time.sleep(2.5)
+                    try:
+                        page.wait_for_timeout(2500) if not page.is_closed() else time.sleep(2.5)
+                    except Exception:
+                        # A renderer may crash under memory pressure; open a clean tab.
+                        try:
+                            page.close()
+                        except Exception:
+                            pass
+                        page = browser.new_page()
+                        try:
+                            page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=25000)
+                        except Exception as exc:
+                            print(f"[session] Recovery navigation: {type(exc).__name__}", flush=True)
+                        time.sleep(2)
                     continue
                 break
             else:
