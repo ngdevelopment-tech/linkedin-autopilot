@@ -3,6 +3,14 @@
 **Naim Gerges**  
 [LinkedIn](https://www.linkedin.com/in/naim-gerges-892591271/) · [Portfolio](https://ngdevelopment-tech.github.io/naimgerges/) · [Source](https://github.com/ngdevelopment-tech/linkedin-autopilot)
 
+## Short note for the submission form
+
+I built an inbound-only LinkedIn worker using Python, Playwright and SQLite. It checks received connection requests and messages, avoids initiating conversations, and uses persistent event claims to reduce duplicate replies. I deployed it to Railway with a saved browser profile and database on a persistent volume, and added GitHub Actions tests.
+
+To run it: install `requirements.txt`, install Playwright Chromium, copy `.env.template` to `.env`, then run `python bot.py` and sign in through the browser. Start with `DRY_RUN=true`; switch to live mode only after verifying the account and message selectors.
+
+The reply engine supports an optional model API for context-aware answers and a local fallback for common messages. Limitations include LinkedIn interface changes, restricted hosting memory, no attachment-content analysis, and uncertain-send cases that require inspection. Live message delivery and invitation handling need to be validated before enabling production operation.
+
 ## How I approached the brief
 
 The assignment asked for quick incoming connection acceptance and natural replies to LinkedIn messages. I wanted to show more than a successful browser click. Even on a small practical task, I think about the complete process: how it runs, what happens when something breaks, whether the result is safe, and how another developer can verify the work.
