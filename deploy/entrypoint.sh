@@ -8,8 +8,8 @@ sleep 1
 runuser -u pwuser -- fluxbox >/dev/null 2>&1 &
 
 if [[ -n "${BROWSER_ACCESS_PASSWORD:-}" ]]; then
-  x11vnc -display :99 -rfbport 5900 -localhost -nopw -forever -shared -quiet >/dev/null 2>&1 &
-  websockify --web=/usr/share/novnc/ 127.0.0.1:6080 localhost:5900 >/dev/null 2>&1 &
+  x11vnc -display :99 -rfbport 5900 -localhost -nopw -forever -shared -o /tmp/x11vnc.log &
+  websockify --web=/usr/share/novnc/ 127.0.0.1:6080 localhost:5900 > /tmp/websockify.log 2>&1 &
   AUTH_HASH="$(openssl passwd -apr1 "${BROWSER_ACCESS_PASSWORD}")"
   printf '%s:%s\n' "${BROWSER_ACCESS_USER:-naim}" "$AUTH_HASH" >/tmp/browser.htpasswd
   chown root:www-data /tmp/browser.htpasswd
@@ -46,6 +46,7 @@ http {
 }
 EOF
   nginx -c /tmp/browser-nginx.conf -g 'daemon off;' &
+  (sleep 3; echo "[browser] VNC diagnostics:" >&2; tail -n 22 /tmp/x11vnc.log /tmp/websockify.log >&2 || true; echo "[browser] local service probes:" >&2; /opt/venv/bin/python -c 'import socket; [(print(f"{h}:{p} "+str(socket.socket().connect_ex((h,p))),flush=True)) for h,p in [("127.0.0.1",5900),("127.0.0.1",6080)]]' >&2) &
   echo "[browser] authenticated remote display enabled" >&2
 else
   echo "[browser] remote display disabled: configure BROWSER_ACCESS_PASSWORD" >&2
