@@ -133,7 +133,8 @@ def inbox_pass(page, state, baseline=False):
             events = thread_messages(page)
             if baseline or DRY:
                 latest_mine = events[-1]["mine"] if events else None
-                print(f"[inbox] thread={item.get("index")} messages={len(events)} latest_mine={latest_mine}", flush=True)
+                thread_index = item.get("index")
+                print(f"[inbox] thread={thread_index} messages={len(events)} latest_mine={latest_mine}", flush=True)
             if not events or events[-1]["mine"]:
                 continue
             last = events[-1]
