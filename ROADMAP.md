@@ -2,19 +2,19 @@
 
 I see this as a small but real service, not just a browser script. These are the changes I would make next, in the order that matters most.
 
-## Before I turn on live replies
+## Verified and next milestones
 
 | Priority | Work | Completion check |
 | --- | --- | --- |
-| P0 | Verify a newly received message from a fresh account | It is identified as inbound; one useful response is sent; no second reply is triggered by the next scan or a restart |
+| Done (controlled) | Verify an inbound message | One reply was confirmed; follow-up scans showed no duplicate sends |
 | P0 | Verify several back-to-back messages in one thread | Each real inbound event has a distinct ID; the bot does not answer its own outgoing messages |
 | Done (controlled) | Verify a received connection invitation | Railway logged one successful incoming acceptance; continue testing with unfamiliar senders |
-| P0 | Finish old-conversation baseline coverage | Existing backlog is marked or excluded without responding to previously received messages after activation |
+| Done (visible inbox) | Baseline existing conversations | All 17 visible conversations were inspected with zero errors before enabling unrestricted live replies |
 | P0 | Measure memory during normal operation | Sustained use stays within the actual Railway trial allocation, or I move the worker to infrastructure that can meet it |
-| P0 | Add a private model credential for contextual replies | The hosted log reports the AI engine, and a reviewed test shows replies grounded in my portfolio without invented claims |
+| Optional | Add model-assisted contextual replies | Evaluate improved response relevance without changing the inbound-only safeguards |
 | P0 | Measure response and acceptance latency | Time from receiving a message/invitation to handling it is recorded and compared with the challenge's scoring requirements |
 
-The worker is now live after a controlled message send and one incoming-invitation acceptance. The remaining checks above are necessary before claiming continuous production reliability. A successful build and test suite are not a substitute for long-running integration testing.
+The worker is live after both controlled tests. The remaining milestones are improvements to response quality, observability and longer-running reliability rather than prerequisites for demonstrating the two core actions.
 
 ## Next release: reliability and observability
 
