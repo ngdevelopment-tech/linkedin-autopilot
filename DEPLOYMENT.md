@@ -53,7 +53,7 @@ ALLOWED_SENDER_NAMES=
 PORT=8080
 ```
 
-Optional: `OPENAI_API_KEY` and `OPENAI_MODEL`. A configured key enables context-aware AI replies. Without it, the service uses offline keyword/pattern responses. The configured key, if present, must remain a Railway secret; it is never included in the public repo.
+Optional: `OPENAI_API_KEY` and `OPENAI_MODEL`. A configured key enables context-aware AI replies. Without it, the service uses offline keyword/pattern responses. The configured key, if present, must remain a Railway secret; it is never included in the public repo.\n\nWith `BASELINE_ON_START=true`, the worker records the existing latest inbound events **once** per persistent database, then resumes regular polling after future restarts. This prevents old inbox items from all being answered at go-live. Back up `/data/state/messages.db` before altering this behavior.
 
 ### Sign-in procedure
 
