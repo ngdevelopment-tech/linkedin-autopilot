@@ -30,7 +30,7 @@ git clone https://github.com/ngdevelopment-tech/linkedin-autopilot.git
 cd linkedin-autopilot
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt pytest
+pip install -r requirements-dev.txt
 python demo.py
 python -m pytest -q
 ```
