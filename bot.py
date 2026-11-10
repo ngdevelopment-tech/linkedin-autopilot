@@ -15,6 +15,7 @@ from message_policy import inbound_candidate, event_identity
 load_dotenv()
 POLL = max(3.0, float(os.getenv("POLL_SECONDS", "5")))
 INVITATION_POLL = max(45.0, float(os.getenv("INVITATION_POLL_SECONDS", "120")))
+ACCEPT_INVITATIONS_ENABLED = os.getenv("ACCEPT_INVITATIONS_ENABLED", "true").lower() == "true"
 MAX_THREADS = max(1, min(100, int(os.getenv("MAX_THREADS", "40"))))
 DRY = os.getenv("DRY_RUN", "true").lower() == "true"
 BASELINE = os.getenv("BASELINE_ON_START", "true").lower() == "true"
@@ -178,6 +179,8 @@ def inbox_pass(page, state, baseline=False, previewed=None):
             sender = sender_name(page)
             if ALLOW and sender.casefold() not in ALLOW:
                 continue
+            if ALLOW and DRY:
+                print("[inbox] Test sender matched allowlist", flush=True)
             events = thread_messages(page)
             if baseline or DRY:
                 direction = events[-1]["direction"] if events else "empty"
@@ -307,7 +310,7 @@ def main():
                 # Invitation requests have a longer deadline; don't reload the whole
                 # LinkedIn network page every time the inbox is checked.
                 now = time.monotonic()
-                if now >= next_invitation_scan:
+                if ACCEPT_INVITATIONS_ENABLED and now >= next_invitation_scan:
                     accept_invitations(page)
                     next_invitation_scan = time.monotonic() + INVITATION_POLL
                 inbox_pass(page, state, previewed=previewed)
