@@ -55,3 +55,19 @@ def test_unknown_personal_question():
 def test_follow_up_same_content_has_distinct_event_keys():
     from storage import State
     assert State.fingerprint("thread", "messageA", "Hello") != State.fingerprint("thread", "messageB", "Hello")
+
+def test_blank_message_gets_a_short_reply():
+    assert fallback("   ").startswith("Hey")
+
+def test_project_question_uses_my_portfolio():
+    reply = fallback("What projects are you currently working on?")
+    assert "portfolio" in reply.lower()
+    assert "naimgerges" in reply
+
+def test_attachment_does_not_override_a_real_question():
+    reply = fallback("Can you build an iOS app?", has_attachment=True)
+    assert "iOS" in reply
+
+def test_private_salary_question_is_not_guessed():
+    reply = fallback("What is your current salary?")
+    assert "private" in reply.lower()
