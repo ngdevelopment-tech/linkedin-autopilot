@@ -175,9 +175,12 @@ def main():
                 raise RuntimeError("LinkedIn login not confirmed; browser access required")
         else:
             input("Log in manually in the browser; press Enter once the feed is visible.")
+        print(f"[session] LinkedIn page={page.url}; authenticated navigation detected", flush=True)
         state = State(STATE_DB)
         if BASELINE:
+            print("[startup] Baseline of existing inbox events starting", flush=True)
             inbox_pass(page, state, baseline=True)
+            print("[startup] Baseline complete; monitoring new inbound messages", flush=True)
         while True:
             try:
                 accept_invitations(page)
