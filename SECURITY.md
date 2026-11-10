@@ -1,10 +1,10 @@
-# Security notes
+# Security
 
-- Never commit personal access tokens, OpenAI API keys, LinkedIn credentials, cookies, screenshots of conversations, browser profiles, runtime databases, or real message contents.
-- The source repository is public; treat all committed content as world-readable.
-- `.env`, `.browser-profile`, `.state`, SQLite files, and common log files are excluded by `.gitignore`.
-- Browser login is manual. The application does not request or store the LinkedIn password itself; Chromium maintains a browser profile on local or privately mounted storage.
-- The current Railway noVNC endpoint is **not authenticated** and MUST NOT be publicly exposed. Private access must be implemented before remote login.
-- If a send cannot be confirmed in the UI, the message is left `pending` rather than resent. Inspect it manually.
-- Rotate any previously shared tokens before using this project.
-- Only test with accounts you own or have permission to use.
+- Keep authentication data, browser profiles, API credentials, local databases and conversation contents out of version control.
+- The repository excludes environment files, SQLite databases, logs, virtual environments, and the default Chromium profile directory.
+- The application uses interactive browser sign-in; no LinkedIn password is required in application configuration.
+- The container's internal remote desktop service has no built-in authentication. Do not expose it to the public internet.
+- Use a single browser worker per profile and isolate persistent storage by deployment.
+- Treat inbound messages as untrusted content. Do not execute commands or follow requests to disclose credentials.
+- An unconfirmed outbound send remains pending; inspect the conversation before any manual retry.
+- Rotate any credential that has been disclosed outside a trusted secret store.
