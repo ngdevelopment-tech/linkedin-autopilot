@@ -12,9 +12,11 @@ if [[ -n "${BROWSER_ACCESS_PASSWORD:-}" ]]; then
   websockify --web=/usr/share/novnc/ 127.0.0.1:6080 localhost:5900 >/dev/null 2>&1 &
   AUTH_HASH="$(openssl passwd -apr1 "${BROWSER_ACCESS_PASSWORD}")"
   printf '%s:%s\n' "${BROWSER_ACCESS_USER:-naim}" "$AUTH_HASH" >/tmp/browser.htpasswd
-  chmod 600 /tmp/browser.htpasswd
+  chown root:www-data /tmp/browser.htpasswd
+  chmod 640 /tmp/browser.htpasswd
 
   cat >/tmp/browser-nginx.conf <<EOF
+user www-data;
 worker_processes 1;
 pid /tmp/browser-nginx.pid;
 error_log /dev/stderr warn;
