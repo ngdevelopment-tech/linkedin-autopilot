@@ -119,7 +119,7 @@ The CI workflow runs syntax compilation and unit tests. Browser integration chec
 - File and image contents are not interpreted.
 - Unconfirmed sends are retained as pending rather than blindly repeated.
 - Offline responses do not provide factual answers about the account holder.
-- Hosted browser login requires an authenticated private access method; the container's remote-desktop port must not be publicly exposed.
+- Hosted browser login requires a secure private access method; the container does not expose a remote desktop.
 - Chromium consumes memory and CPU, which may exceed small hosting allocations.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) and [SECURITY.md](SECURITY.md) for infrastructure and private-data handling.
