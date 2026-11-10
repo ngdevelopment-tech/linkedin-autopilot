@@ -160,8 +160,8 @@ def main():
         print("DRY_RUN enabled: no invitations accepted or messages sent", flush=True)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch_persistent_context(
-            PROFILE, headless=False, viewport={"width":1100,"height":720},
-            args=["--disable-notifications", "--disable-gpu", "--renderer-process-limit=2"]
+            PROFILE, headless=False, viewport={"width":960,"height":640},
+            args=["--disable-notifications", "--disable-gpu", "--renderer-process-limit=2", "--disk-cache-size=8388608", "--media-cache-size=1048576", "--disable-breakpad", "--disable-extensions"]
         )
         # Suppress heavy media downloads while keeping scripts, CSS and interactions available.
         browser.route("**/*", lambda route: route.abort() if route.request.resource_type in ("image", "media", "font") else route.continue_())
