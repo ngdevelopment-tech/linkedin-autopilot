@@ -17,6 +17,7 @@ POLL = max(3.0, float(os.getenv("POLL_SECONDS", "5")))
 INVITATION_POLL = max(45.0, float(os.getenv("INVITATION_POLL_SECONDS", "120")))
 ACCEPT_INVITATIONS_ENABLED = os.getenv("ACCEPT_INVITATIONS_ENABLED", "true").lower() == "true"
 MAX_THREADS = max(1, min(100, int(os.getenv("MAX_THREADS", "40"))))
+BASELINE_SCAN_LIMIT = max(MAX_THREADS, min(100, int(os.getenv("BASELINE_SCAN_LIMIT", "35"))))
 DRY = os.getenv("DRY_RUN", "true").lower() == "true"
 BASELINE = os.getenv("BASELINE_ON_START", "true").lower() == "true"
 ALLOW = {x.strip().casefold() for x in os.getenv("ALLOWED_SENDER_NAMES", "").split(",") if x.strip()}
@@ -172,13 +173,18 @@ def send_reply(page, answer):
             return True
     raise RuntimeError("Unconfirmed send; message left pending for manual inspection")
 
-def inbox_pass(page, state, baseline=False, previewed=None):
+def inbox_pass(page, state, baseline=False, previewed=None, scan_limit=None):
     threads = sorted(get_threads(page), key=lambda item: not item["unread"])
+    limit = scan_limit if scan_limit is not None else MAX_THREADS
     print(f"[inbox] pass baseline={baseline} conversation_count={len(threads)}", flush=True)
-    for item in threads[:MAX_THREADS]:
+    inspected = 0
+    errors = 0
+    for item in threads[:limit]:
         try:
             if not open_thread(page, item):
+                errors += 1
                 continue
+            inspected += 1
             sender = sender_name(page)
             if ALLOW and sender.casefold() not in ALLOW:
                 continue
@@ -227,9 +233,11 @@ def inbox_pass(page, state, baseline=False, previewed=None):
                 state.complete_message(key)
                 print("[message] reply confirmed", flush=True)
         except Exception as exc:
+            errors += 1
             print(f"[message] {type(exc).__name__}: {str(exc)[:120]}", flush=True)
             if "crash" in str(exc).lower() or "target closed" in str(exc).lower():
                 raise
+    return {"seen": len(threads), "inspected": inspected, "errors": errors}
 
 def wait_for_login(browser, page):
     """Recover a failed LinkedIn renderer without losing persistent cookies."""
@@ -298,14 +306,19 @@ def main():
             input("Log in manually in the browser; press Enter once messaging is visible.")
         print(f"[session] LinkedIn page={page.url}; authenticated navigation detected", flush=True)
         state = State(STATE_DB)
-        baseline_key = State.fingerprint("worker-bootstrap", "inbox", "v3")
+        baseline_key = State.fingerprint("worker-bootstrap", "inbox", "v4-all-visible")
         if BASELINE and not state.status(baseline_key):
-            print("[startup] One-time baseline of existing inbox events starting", flush=True)
-            inbox_pass(page, state, baseline=True)
+            print("[startup] Existing-message baseline starting", flush=True)
+            # LinkedIn initially renders only a subset of the conversation list.
+            page.wait_for_timeout(4000)
+            stats = inbox_pass(page, state, baseline=True, scan_limit=BASELINE_SCAN_LIMIT)
+            print(f"[startup] Baseline inspected={stats['inspected']} seen={stats['seen']} errors={stats['errors']}", flush=True)
+            if stats["seen"] == 0 or stats["seen"] > BASELINE_SCAN_LIMIT or stats["inspected"] < stats["seen"] or stats["errors"]:
+                raise RuntimeError("Inbox baseline incomplete; refusing to enter live monitoring")
             state.mark(baseline_key, "done")
-            print("[startup] One-time baseline complete; monitoring new inbound messages", flush=True)
+            print("[startup] Existing-message baseline complete; monitoring new inbound messages", flush=True)
         elif BASELINE:
-            print("[startup] Persistent baseline already complete; resuming monitoring", flush=True)
+            print("[startup] Existing-message baseline already complete; resuming monitoring", flush=True)
         previewed = set()
         next_invitation_scan = 0.0
         browser_errors = 0
