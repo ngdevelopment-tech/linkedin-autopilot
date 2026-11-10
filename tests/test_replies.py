@@ -71,3 +71,13 @@ def test_attachment_does_not_override_a_real_question():
 def test_private_salary_question_is_not_guessed():
     reply = fallback("What is your current salary?")
     assert "private" in reply.lower()
+
+
+def test_ai_mobile_app_question_gets_specific_technical_advice():
+    prompt = ("Hey Naim! I'm thinking about building an AI-powered mobile app. "
+              "What technologies would you recommend, and can you tell me about your experience?")
+    reply = fallback(prompt)
+    assert "React Native" in reply
+    assert "Python" in reply
+    assert "mobile and AI" in reply
+    assert "app meant to do" in reply
