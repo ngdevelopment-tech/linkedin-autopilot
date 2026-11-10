@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+export DISPLAY=:99
 mkdir -p /data/browser /data/state
 chown -R pwuser:pwuser /data
 runuser -u pwuser -- Xvfb :99 -screen 0 1440x900x24 -nolisten tcp &
