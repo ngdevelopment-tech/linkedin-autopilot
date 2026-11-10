@@ -9,5 +9,5 @@ RUN python -m venv /opt/venv && /opt/venv/bin/python -m pip install --no-cache-d
 COPY bot.py replies.py storage.py ./
 COPY deploy/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh && mkdir -p /data && chown -R pwuser:pwuser /data /app
-USER pwuser
+USER root
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
