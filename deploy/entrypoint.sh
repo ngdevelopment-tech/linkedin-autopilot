@@ -44,7 +44,7 @@ pid /tmp/browser-nginx.pid;
 error_log /dev/stderr warn;
 events { worker_connections 256; }
 http {
-  access_log off;
+  access_log /dev/stdout combined;
   client_body_temp_path /tmp/nginx-client;
   proxy_temp_path /tmp/nginx-proxy;
   fastcgi_temp_path /tmp/nginx-fastcgi;
