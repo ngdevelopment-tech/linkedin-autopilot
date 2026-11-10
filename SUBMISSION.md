@@ -5,11 +5,11 @@
 
 ## Short note for the submission form
 
-I built an inbound-only LinkedIn worker using Python, Playwright and SQLite. It checks received connection requests and messages, avoids initiating conversations, and uses persistent event claims to reduce duplicate replies. I deployed it to Railway with a saved browser profile and database on a persistent volume, and added GitHub Actions tests.
+I built an inbound-only LinkedIn worker using Python, Playwright and SQLite. It automatically accepts received connection requests and replies to incoming messages, without initiating conversations or sending invitations. I deployed it on Railway with a persistent browser profile and SQLite event tracking. GitHub Actions checks the code, and a controlled live test confirmed a sent reply and an accepted incoming invitation.
 
 To run it: install `requirements.txt`, install Playwright Chromium, copy `.env.template` to `.env`, then run `python bot.py` and sign in through the browser. Start with `DRY_RUN=true`; switch to live mode only after verifying the account and message selectors.
 
-The reply engine supports an optional model API for context-aware answers and a local fallback for common messages. Limitations include LinkedIn interface changes, restricted hosting memory, no attachment-content analysis, and uncertain-send cases that require inspection. Live message delivery and invitation handling need to be validated before enabling production operation.
+The current worker uses a rule-based reply engine; a model API is optional but not required to run it. It cannot inspect attachment contents, and unusual questions may receive general follow-ups. LinkedIn interface changes, memory spikes and uncertain send confirmations still require monitoring. One live reply and one incoming invitation acceptance were verified; uninterrupted availability and all judging cases are not guaranteed.
 
 ## How I approached the brief
 
@@ -50,8 +50,8 @@ That is an **offline review**. For an actual LinkedIn integration test, follow [
 - GitHub Actions has passed **offline tests** as well as syntax and packaging checks.
 - The Railway worker has authenticated with LinkedIn and discovered inbound and outbound message events.
 - The earlier live test delivered messages but exposed duplicate-send behavior; this was the reason for the persistent event-claim redesign.
-- The current deployment remains in `DRY_RUN=true` pending a clean live replay and invitation-acceptance test.
-- Model-based replies need a private `OPENAI_API_KEY`. Running without that key uses the local response rules.
+- The controlled live test confirmed one reply, and a received connection request was accepted automatically. The hosted worker now runs with `DRY_RUN=false` and no sender-name restriction, following a successful 17-conversation baseline.
+- The hosted bot runs without an AI API key, using local response rules. An optional private `OPENAI_API_KEY` enables more contextual replies.
 - The free Railway trial is memory-constrained, and long-term 0.5 GB stability has **not** been established.
 
 I included these points because I think explaining what works, what failed and what remains to prove is part of doing a technical assignment properly.
