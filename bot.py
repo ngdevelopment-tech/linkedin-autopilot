@@ -25,7 +25,7 @@ HEADLESS = os.getenv("BROWSER_HEADLESS", "false").lower() == "true"
 
 EXTRACT_THREAD = r"""() => {
  const main = document.querySelector('.msg-s-message-list, .msg-thread, [data-view-name="message-list"]') || document;
- // Nested selectors previously extracted individual events twice.
+ // Use a single event selector to avoid counting nested nodes twice.
  let nodes = [...main.querySelectorAll('.msg-s-message-list__event')];
  if (!nodes.length) nodes = [...main.querySelectorAll('.msg-s-event-listitem')];
  return nodes.map(node => {
