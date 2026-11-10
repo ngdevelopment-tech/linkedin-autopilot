@@ -28,20 +28,26 @@ EXTRACT_THREAD = r"""() => {
  let nodes = [...main.querySelectorAll('.msg-s-message-list__event')];
  if (!nodes.length) nodes = [...main.querySelectorAll('.msg-s-event-listitem')];
  return nodes.map(node => {
-   const group = node.closest('.msg-s-message-group');
+   const group = node.querySelector('.msg-s-message-group') || node.closest('.msg-s-message-group');
    const combined = String(node.className || '') + ' ' + String(group?.className || '');
    const attr = (node.getAttribute('data-message-direction') || group?.getAttribute('data-message-direction') || '').toLowerCase();
    const sender = group?.querySelector('.msg-s-message-group__profile-link');
    const senderCls = String(sender?.className || '');
-   const isOutgoing = /--outbound|--self|outgoing|from-me/i.test(combined) ||
+   const senderHref = (sender?.getAttribute('href') || '').toLowerCase();
+   const ownProfile = /\/in\/naim-gerges-892591271\/?/.test(senderHref);
+   const otherProfile = /\/in\/[^/?]+/.test(senderHref) && !ownProfile;
+   const isOutgoing = ownProfile || /--outbound|--self|outgoing|from-me/i.test(combined) ||
        attr === 'outbound' || /--outbound/.test(senderCls);
-   const isIncoming = /--inbound|incoming|from-other/i.test(combined) ||
-       attr === 'inbound' || (!!sender && !isOutgoing);
+   const isIncoming = otherProfile || /--inbound|incoming|from-other/i.test(combined) ||
+       attr === 'inbound';
    const direction = isOutgoing ? 'outbound' : isIncoming ? 'inbound' : 'unknown';
    const body = node.querySelector('.msg-s-event-listitem__body, .msg-s-event-listitem__message-bubble, .msg-s-message-group__message, .msg-s-event-listitem__message-body');
    const text = (body?.innerText || '').trim();
    const attachment = !!node.querySelector('a[href*="/attachment/"], a[href*="/dms/document/"], [data-attachment-id], .msg-s-event-listitem__attachment');
-   const id = node.getAttribute('data-event-urn') || node.getAttribute('data-message-id') || node.id || '';
+   const id = node.getAttribute('data-event-urn') || node.getAttribute('data-message-id') ||
+       node.querySelector('[data-event-urn], [data-message-id], [data-urn]')?.getAttribute('data-event-urn') ||
+       node.querySelector('[data-message-id]')?.getAttribute('data-message-id') ||
+       node.querySelector('[data-urn]')?.getAttribute('data-urn') || node.id || '';
    return {text, direction, mine:direction === 'outbound', attachment, id};
  }).filter(item => item.text || item.attachment);
 }"""
@@ -61,8 +67,12 @@ def thread_messages(page):
             groupClass: String(g?.className||'').slice(0,120),
             parentClass: String(p?.className||'').slice(0,120),
             nodeAttrNames: keys(n), groupAttrNames: keys(g),
-            profileLinkClasses: [...(g?.querySelectorAll('[class*="profile-link"]')||[])]
-              .map(e=>String(e.className||'').slice(0,110)).slice(0,3)
+            profileLinkClasses: [...(n.querySelectorAll('[class*="profile-link"]')||[])]
+              .map(e=>String(e.className||'').slice(0,110)).slice(0,3),
+            nestedGroups: n.querySelectorAll('.msg-s-message-group').length,
+            ownerProfile: [...n.querySelectorAll('a[href*="/in/"]')].some(a=>a.getAttribute('href')?.includes('naim-gerges-892591271')),
+            otherProfile: [...n.querySelectorAll('a[href*="/in/"]')].some(a=>!a.getAttribute('href')?.includes('naim-gerges-892591271')),
+            descendantsWithIds: n.querySelectorAll('[data-event-urn], [data-message-id], [data-urn]').length
           };
         }""")
         print(f"[inbox] direction diagnostics={structure}", flush=True)
