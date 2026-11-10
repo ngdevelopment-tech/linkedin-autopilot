@@ -1,19 +1,41 @@
-# Technical summary
+# Challenge submission — LinkedIn AutoPilot
 
-**Repository:** https://github.com/ngdevelopment-tech/linkedin-autopilot
+**Built by Naim Gerges**
 
-**LinkedIn profile:** https://www.linkedin.com/in/naim-gerges-892591271/
+- **Code:** https://github.com/ngdevelopment-tech/linkedin-autopilot
+- **LinkedIn:** https://www.linkedin.com/in/naim-gerges-892591271/
+- **Portfolio:** https://ngdevelopment-tech.github.io/naimgerges/
+- **Hosting:** Railway, connected to my GitHub `main` branch, running a persistent Playwright Chromium worker with a dedicated SQLite volume.
 
-## Functionality
+## My approach
 
-The service monitors received connection invitations and existing LinkedIn message threads. It accepts incoming invitations and responds to the latest eligible inbound message with a concise reply. Processing fingerprints and status are retained in SQLite to reduce duplicate handling. It does not initiate conversations, send connection invitations or perform bulk messaging.
+I built a small but practical event-driven browser worker for a difficult target: LinkedIn messages are not a stable public inbox API. I focused on *inbound-only activity*, persistent identity and restart recovery, and concise answers that sound like me rather than a generic bot.
 
-## Installation
+The worker checks received connection invitations and existing inbox threads. It considers a message eligible only when it can identify the sender as **inbound**, derives a repeatable event identity, and reserves that exact event **before** it clicks Send. If sending times out or browser verification is unclear, the claim stays pending rather than risking another duplicate reply. A later genuine inbound event in the same thread can have its own claim. My existing Chromium profile and SQLite state live on a Railway volume and survive deployments.
 
-Install Python 3.11+, run `pip install -r requirements.txt`, install Playwright Chromium with `python -m playwright install chromium`, copy `.env.example` to `.env`, and start `python bot.py`. Complete LinkedIn sign-in in the Chromium window. Configure `DRY_RUN=false` to enable account-changing actions after validating selectors.
+I also designed an optional contextual AI response mode grounded in my public portfolio and facts I can support. When no API key is supplied, a deterministic offline response engine handles greetings, emoji-only messages, long messages, Arabic, French, Spanish, links, files/images (without claiming to see their contents), rude language, project questions and unanswerable personal questions.
 
-## Limitations
+## How to reproduce
 
-The browser integration depends on LinkedIn's current interface. Attachments are detected without parsing their contents. Unconfirmed sends require inspection. The optional external response engine is needed for more specific conversational replies. Hosted use requires secure interactive browser sign-in and sufficient resources.
+```bash
+git clone https://github.com/ngdevelopment-tech/linkedin-autopilot.git
+cd linkedin-autopilot
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt pytest
+python -m playwright install chromium
+python -m compileall -q bot.py replies.py storage.py message_policy.py
+python -m pytest -q
+```
 
-Detailed settings and architecture are documented in [README.md](README.md).
+To test a real LinkedIn session, copy `.env.example` to `.env`, run `python bot.py`, sign in inside Chromium and start with `DRY_RUN=true`. The browser profile and private state must never be committed.
+
+## Evidence and current limitations
+
+GitHub Actions validates compilation, shell syntax and offline tests; the repository documents what those tests cover. Actual LinkedIn event parsing, invitations, message delivery and latency require a signed-in integration check. No unit-test success is presented as proof that a live reply was delivered.
+
+I reproduced a real duplicate-send problem during testing, fixed the persistence model to claim **one event rather than one conversation**, and added fail-closed handling for unknown message authorship. This is a deliberate tradeoff: I'd rather miss an uncertain reply than send a duplicated or incorrect message.
+
+The worker currently uses browser automation, which is subject to LinkedIn DOM changes and authentication checkpoints. The lightweight Railway Trial Plan can also be memory-constrained. Optional AI replies require `OPENAI_API_KEY`, supplied privately by the deployer. My public repository contains no LinkedIn session or credentials.
+
+More detail: [README.md](README.md) · [DEPLOYMENT.md](DEPLOYMENT.md) · [SECURITY.md](SECURITY.md).
