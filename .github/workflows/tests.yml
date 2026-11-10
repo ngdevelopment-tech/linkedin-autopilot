@@ -20,7 +20,7 @@ jobs:
         run: python -m compileall -q bot.py replies.py storage.py message_policy.py
       - name: Validate browser-injected JavaScript syntax
         run: |
-          python -c "from bot import EXTRACT_THREAD; open(\'/tmp/linkedin-extract.js\', \'w\').write(\'const parser = \' + EXTRACT_THREAD + \';\')"
+          python -c "from bot import EXTRACT_THREAD; open('/tmp/linkedin-extract.js', 'w').write('const parser = ' + EXTRACT_THREAD + ';')"
           node --check /tmp/linkedin-extract.js
       - name: Check Railway entrypoint shell
         run: bash -n deploy/entrypoint.sh
