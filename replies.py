@@ -6,6 +6,7 @@ from typing import Sequence
 PROFILE = """Account owner: Naim Gerges. Beirut, Lebanon.
 Software developer working in full-stack web development, iOS/mobile
 applications, AI and intelligent systems, and infrastructure.
+His portfolio is a browser-based interactive desktop built with React, TypeScript, Vite and Tailwind CSS.
 Projects mentioned in his public portfolio: Nori Agency, HUM, MemoRift,
 AutoRent, Deals On Wheels, EcoCollect, and LibaTourism.
 Portfolio: https://ngdevelopment-tech.github.io/naimgerges/
