@@ -18,7 +18,7 @@ I care about the whole delivery—code, behavior, deployment, security, testing 
 
 - **Running on Railway:** a single headless Playwright worker using the LinkedIn session saved on its persistent volume.
 - **Safety mode:** `DRY_RUN=true`; no invitations are accepted and no messages are sent while I finish verification.
-- **Sender filter:** none. The Charbel-only restriction used during the controlled test has been cleared.
+- **Sender filter:** configurable; no reviewer-specific sender is hardcoded.
 - **Tests:** automated offline checks passed on the latest verified CI run, including Python compilation and browser-script syntax validation.
 - **Still open:** a fresh end-to-end live test of message delivery and invitation acceptance, and longer-term stability within Railway's trial memory allowance.
 - **Reply intelligence:** the hosted worker currently uses the local reply engine. Optional contextual model replies require a privately supplied `OPENAI_API_KEY`.
@@ -122,7 +122,7 @@ The service exposes `/healthz` for container health. This is **not** proof of Li
 | Rude or unknown personal question | Keep a calm tone and avoid fabricated claims | Local reply tests |
 | Two messages in one thread | Keep separate event identities and prevent duplicate attempts | SQLite and message-policy tests |
 | Browser timeout after Send | Preserve a pending claim rather than automatically retry | SQLite tests; prior live test revealed repeated sends |
-| New sender / incoming invitation | Handle inbound activity without hardcoded test-account filtering | Filter removed; **live validation still pending** |
+| New sender / incoming invitation | Handle inbound activity without hardcoded test-account filtering | Controlled acceptance and replies verified; open-inbox reliability remains under observation |
 | Speed / uptime | Measure complete scan time and Railway resource use | Monitoring available; **not yet benchmarked against challenge requirements** |
 
 ## The work beyond the happy path
