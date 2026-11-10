@@ -1,61 +1,53 @@
 # LinkedIn AutoPilot
 
-A browser-based LinkedIn inbox worker built with Python, Playwright, and SQLite.
-
-The service monitors incoming connection invitations and conversations. It handles invitations from the received queue and prepares brief, context-aware responses to inbound messages. It never creates connection requests, starts conversations, or sends bulk messages.
+Python automation service for inbound LinkedIn connection requests and direct messages.
 
 ## Features
 
-- **Invitation processing** — reads the received-invitations page and accepts pending invitations when enabled.
-- **Inbound message handling** — examines existing conversations and acts only on the latest inbound event.
-- **Contextual responses** — optional language-model responses based on recent thread context, with an offline fallback.
-- **Conversation safety** — rechecks the latest event before composing a send and requires an outbound UI confirmation.
-- **Processing state** — SQLite records message fingerprints and handling status to avoid repeating completed work after restarts.
-- **Operational controls** — dry-run mode, per-sender allowlist, polling interval, thread cap, and persistent browser profile.
-- **Container support** — Docker image with Playwright Chromium, a virtual display, and persistent runtime storage.
+- Reviews the incoming invitation queue and accepts pending requests.
+- Monitors existing message conversations and responds only to inbound messages.
+- Generates concise contextual replies using a configurable language-model provider; deterministic fallback responses are available.
+- Tracks message-processing fingerprints in SQLite to avoid repeating completed operations.
+- Rechecks conversation state before sending and verifies outbound messages where possible.
+- Supports dry-run mode, sender allowlists, restart persistence, and adjustable scanning.
+- Runs locally with Playwright Chromium or in a Linux container.
 
 ## Architecture
 
 ```text
-LinkedIn browser
-    |
-    +-- Received invitations --> Invitation handler
-    |
-    +-- Existing conversations --> Inbound event filter
-                                     |
-                                     +--> SQLite processing state
-                                     |
-                                     +--> Reply generator
-                                             |
-                                             +--> Optional language-model service
-                                             +--> Deterministic fallback
-                                     |
-                                     +--> UI send + confirmation
+Playwright browser
+  ├── Incoming invitations → Invitation handler
+  └── Existing conversations → Inbound event filter
+                                ├── SQLite processing state
+                                ├── Reply engine
+                                └── Send and UI confirmation
 ```
 
-## Project files
+## Repository structure
 
-| Path | Responsibility |
+| Path | Description |
 | --- | --- |
-| `bot.py` | Browser lifecycle, invitation handling, thread scanning, and send confirmation |
-| `replies.py` | Short multilingual message responses and optional contextual generation |
-| `storage.py` | Persistent message fingerprints and processing status |
-| `tests/` | Automated behavior and persistence tests |
-| `requirements.txt` | Pinned Playwright dependency and runtime packages |
-| `Dockerfile` | Chromium container image |
-| `deploy/entrypoint.sh` | Linux virtual-display startup |
-| `.env.example` | Environment configuration template |
-| `DEPLOYMENT.md` | Local execution and hosted deployment configuration |
-| `SECURITY.md` | Credential handling and access boundaries |
-| `SUBMISSION.md` | Competition submission summary |
+| `bot.py` | Browser lifecycle, invitations, conversations, and message handling |
+| `replies.py` | Message-response strategy and fallback behavior |
+| `storage.py` | Persistent message fingerprints and processing states |
+| `tests/` | Unit tests for response behavior and persistence |
+| `requirements.txt` | Python dependencies |
+| `Dockerfile` | Playwright browser container |
+| `deploy/entrypoint.sh` | Container display startup |
+| `.env.example` | Configuration reference |
+| `DEPLOYMENT.md` | Runtime configuration and infrastructure |
+| `SECURITY.md` | Private data and access controls |
 
 ## Requirements
 
-Python 3.11+, a desktop environment for interactive browser login, and a LinkedIn account under your control. An language-model API key is optional. No LinkedIn password or cookie is embedded in the source.
+- Python 3.11 or newer
+- Chromium installed through Playwright
+- A LinkedIn account with access to incoming invitations and messages
+- Optional response-generation API credential
 
-## Run on Windows
+## Windows installation
 
-Clone the repository and open PowerShell inside its root:
+Open PowerShell in the repository directory:
 
 ```powershell
 py -m venv .venv
@@ -65,27 +57,52 @@ Copy-Item .env.example .env
 .\.venv\Scripts\python.exe bot.py
 ```
 
-Sign in to LinkedIn in the opened Chromium window, then return to the terminal and press Enter. Browser state is retained in the configured profile directory.
+Sign in using the Chromium browser window and return to PowerShell. Press Enter after the LinkedIn feed is visible. The session is kept in the configured browser profile directory.
 
-The default `DRY_RUN=true` previews detected actions without accepting invitations or sending messages. After validating the browser selectors and reply behavior using accounts you control, set `DRY_RUN=false` to enable actions.
+The default `DRY_RUN=true` logs proposed actions without modifying the account. To enable actual invitation acceptance and message sending, change it to `false` after checking the browser selectors.
 
 ## Configuration
 
-| Variable | Default | Purpose |
+| Setting | Default | Description |
 | --- | --- | --- |
-| `DRY_RUN` | `true` | Preview without making account changes |
-| `POLL_SECONDS` | `5` | Delay between scan cycles, excluding scan duration |
-| `MAX_THREADS` | `40` | Maximum conversations scanned per cycle |
-| `BASELINE_ON_START` | `true` | Treat existing latest inbound messages as already seen |
-| `ALLOWED_SENDER_NAMES` | empty | Optional comma-separated sender allowlist |
-| `OPENAI_API_KEY` | empty | Optional private language-model API credential |
-| `OPENAI_MODEL` | `gpt-4.1-mini` | Model for contextual responses |
-| `BROWSER_PROFILE_DIR` | `.browser-profile` | Persistent Chromium browser data |
-| `STATE_DB_PATH` | `.state/messages.db` | SQLite processing state |
-| `UNATTENDED` | `false` | Wait for browser authentication without terminal input |
-| `LOGIN_TIMEOUT_SECONDS` | `900` | Authentication timeout for unattended startup |
+| `DRY_RUN` | `true` | Preview actions without sending or accepting |
+| `POLL_SECONDS` | `5` | Delay after a complete scan |
+| `MAX_THREADS` | `40` | Conversations examined per scan |
+| `BASELINE_ON_START` | `true` | Register existing inbound messages as previously seen |
+| `ALLOWED_SENDER_NAMES` | empty | Optional comma-separated sender restriction |
+| `OPENAI_API_KEY` | empty | Optional reply-engine API credential |
+| `OPENAI_MODEL` | `gpt-4.1-mini` | Model used when the external response service is configured |
+| `BROWSER_PROFILE_DIR` | `.browser-profile` | Persistent browser profile |
+| `STATE_DB_PATH` | `.state/messages.db` | SQLite database location |
+| `UNATTENDED` | `false` | Browser sign-in without waiting for terminal input |
+| `LOGIN_TIMEOUT_SECONDS` | `900` | Unattended browser sign-in deadline |
 
-For the judge's first message, start the worker before the assessment begins. `BASELINE_ON_START=true` skips the latest inbound message already present when the worker first starts. Choose the setting deliberately.
+The full scan includes navigation through conversations and may take longer than `POLL_SECONDS`. Set `BASELINE_ON_START` intentionally: existing inbound messages present during the initial scan are marked as seen when enabled.
+
+## Processing sequence
+
+1. Open the received-invitations page and process pending invitations.
+2. Inspect conversation entries in the message inbox.
+3. Skip conversations with no eligible inbound message.
+4. Check persistent state to avoid processing the same inbound event twice.
+5. Generate a short reply from the inbound message and recent conversation history.
+6. Recheck the conversation before sending.
+7. Send and look for an outbound UI confirmation.
+8. Record confirmed, pending, or preview processing status and repeat.
+
+## Response behavior
+
+| Incoming input | Offline fallback response |
+| --- | --- |
+| `hello` | Hey! Good to hear from you. How's it going? |
+| `🙂` | Hey 😊 What's up? |
+| `مرحبا` | أهلاً! كيف فيني ساعدك؟ |
+| `bonjour` | Salut ! Comment puis-je t'aider ? |
+| `https://example.org` | Thanks for the link. What would you like me to focus on? |
+| File or image without text | Thanks for sending this. What would you like me to look at? |
+| Unknown question | Good question. Could you share a little more context? |
+
+With the optional reply service configured, replies can use recent conversation context. The fallback is deliberately generic and should not be used as evidence of sophisticated semantic understanding.
 
 ## Tests
 
@@ -94,29 +111,15 @@ For the judge's first message, start the worker before the assessment begins. `B
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-GitHub Actions executes the unit tests on pushes and pull requests. A controlled live test is required to establish compatibility with the current LinkedIn interface.
+The CI workflow runs syntax compilation and unit tests. Browser integration checks require a signed-in browser and controlled inbound test messages.
 
-## Deployment
+## Operational limitations
 
-The container runs Chromium using a virtual display and stores the browser profile and SQLite database on persistent storage. See [DEPLOYMENT.md](DEPLOYMENT.md) for Railway and local execution details.
+- LinkedIn interface changes can invalidate selectors.
+- File and image contents are not interpreted.
+- Unconfirmed sends are retained as pending rather than blindly repeated.
+- Offline responses do not provide factual answers about the account holder.
+- Hosted browser login requires an authenticated private access method; the container's remote-desktop port must not be publicly exposed.
+- Chromium consumes memory and CPU, which may exceed small hosting allocations.
 
-The remote desktop component is an **internal service**, not a public website. A private authenticated access method must be established before remote login; do not expose its noVNC port to the internet.
-
-## Current limitations
-
-- LinkedIn's page structure can change and require selector updates.
-- Attachments are identified but their contents are not read or interpreted.
-- Without an AI API key, the fallback cannot answer detailed personal or business questions.
-- Uncertain outbound delivery remains flagged for inspection instead of being automatically resent.
-- A hosted Chromium session requires secure interactive authentication and sufficient memory; Railway trial resources and uptime are not guaranteed.
-- The current code has unit tests, but invitation acceptance and message delivery still require live acceptance tests.
-
-## Account and data handling
-
-Only inbound interactions are eligible for processing. Message bodies are not committed to the repository. Local browser data, environment files, and database state are excluded from version control. Review [SECURITY.md](SECURITY.md) before deployment.
-
-This uses unofficial browser automation; account restrictions are possible under LinkedIn's platform rules.
-
-## Competition
-
-The required profile URL and concise submission note are recorded in [SUBMISSION.md](SUBMISSION.md).
+See [DEPLOYMENT.md](DEPLOYMENT.md) and [SECURITY.md](SECURITY.md) for infrastructure and private-data handling.
