@@ -33,7 +33,7 @@ def fallback(text: str, has_attachment: bool = False) -> str:
     s = (text or "").strip()
     low = s.casefold()
     if has_attachment and not s:
-        return "I can see you sent an attachment, but I can’t read its contents here. What would you like me to focus on?"
+        return "I see an attachment, but I can't inspect its contents here. What would you like me to look at?"
     if not s:
         return "Hey, what's up?"
     if re.fullmatch(r"[\W_\s]+", s, re.UNICODE):
@@ -70,7 +70,9 @@ def fallback(text: str, has_attachment: bool = False) -> str:
         return "That's one of the projects featured in my portfolio. What would you like to know about it?"
     if any(k in low for k in ("currently working on", "working on lately", "recent projects", "recent work", "what projects", "projects are you")):
         return "I work on web and mobile products and AI workflows. A few examples are on my portfolio: https://ngdevelopment-tech.github.io/naimgerges/. Which area interests you?"
-    if any(k in low for k in ("price", "rate", "budget", "quote", "cost", "salary")):
+    if "salary" in low or "how much do you earn" in low:
+        return "I keep personal salary details private. Happy to share more context about my work, though."
+    if any(k in low for k in ("price", "rate", "budget", "quote", "cost")):
         return "It depends on the scope. Could you share what you need built and the timeline you have in mind?"
     if any(k in low for k in ("meeting", "call", "available", "free tomorrow", "schedule")):
         return "Happy to discuss it. What would you like to cover? I can check my availability once I know the details."
