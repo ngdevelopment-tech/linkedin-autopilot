@@ -26,7 +26,7 @@ def test_rude():
     assert "respectful" in fallback("you are stupid")
 
 def test_long():
-    assert "focus on first" in fallback("a" * 1300)
+    assert "tackle first" in fallback("a" * 1300)
 
 def test_question():
     assert "context" in fallback("Can you do that?")
