@@ -75,41 +75,26 @@ def sender_name(page):
     return "Unknown"
 
 def get_threads(page):
-    page.goto("https://www.linkedin.com/messaging/", wait_until="domcontentloaded", timeout=25000)
-    page.wait_for_timeout(2500)
-    discovery = page.evaluate("""() => {
-       const selectors = [
-         'li.msg-conversation-listitem', '.msg-conversation-card',
-         '[class*="conversation-listitem"]', '[data-view-name*="conversation"]',
-         'a[href*="/messaging/thread/"]'
-       ];
-       const counts = selectors.map(sel => document.querySelectorAll(sel).length);
-       const cards = [...document.querySelectorAll('li.msg-conversation-listitem, .msg-conversation-card, [class*="conversation-listitem"]')];
-       const unique = [...new Set(cards)];
-       const threads = unique.map((el,index) => ({
-         index, href: el.querySelector('a[href*="/messaging/thread/"]')?.href || '',
+    # LinkedIn may redirect /messaging/ to the currently selected thread.
+    if "/messaging/" not in page.url:
+        page.goto("https://www.linkedin.com/messaging/", wait_until="domcontentloaded", timeout=22000)
+    page.wait_for_timeout(900)
+    return page.evaluate("""() => {
+       const cards = [...document.querySelectorAll('li.msg-conversation-listitem')];
+       return cards.map((el,index) => ({
+         index, href: '',
          unread: /unread/i.test(el.className) || !!el.querySelector('[class*="unread"], [aria-label*="unread"]')
        }));
-       return {
-         threads, counts, title: document.title.slice(0,75),
-         classes: [...document.querySelectorAll('main, li, section')].slice(0,100)
-           .map(el => String(el.className || '').slice(0,85))
-           .filter(c => /msg-|conversation|messag/i.test(c)).slice(0,12)
-       };
     }""")
-    print(f"[inbox] discovery page={page.url[:110]} selectors={discovery['counts']} examples={discovery['classes']}", flush=True)
-    return discovery["threads"]
 
 def open_thread(page, item):
-    if item["href"]:
-        page.goto(item["href"], wait_until="domcontentloaded", timeout=22000)
-    else:
-        page.goto("https://www.linkedin.com/messaging/", wait_until="domcontentloaded", timeout=22000)
-        items = page.locator("li.msg-conversation-listitem, .msg-conversation-card")
-        if item["index"] >= items.count():
-            return False
-        items.nth(item["index"]).click(timeout=3500)
-    page.wait_for_timeout(350)
+    # Keep LinkedIn's single-page messenger mounted rather than making
+    # a full network navigation for every conversation.
+    cards = page.locator("li.msg-conversation-listitem")
+    if item["index"] >= cards.count():
+        return False
+    cards.nth(item["index"]).click(timeout=4000)
+    page.wait_for_timeout(450)
     return True
 
 def send_reply(page, answer):
@@ -174,6 +159,8 @@ def inbox_pass(page, state, baseline=False):
                 print("[message] reply confirmed", flush=True)
         except Exception as exc:
             print(f"[message] {type(exc).__name__}: {str(exc)[:120]}", flush=True)
+            if "crash" in str(exc).lower() or "target closed" in str(exc).lower():
+                raise
 
 def wait_for_login(browser, page):
     """Recover a failed LinkedIn renderer without losing persistent cookies."""
