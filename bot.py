@@ -78,7 +78,10 @@ def get_threads(page):
     # LinkedIn may redirect /messaging/ to the currently selected thread.
     if "/messaging/" not in page.url:
         page.goto("https://www.linkedin.com/messaging/", wait_until="domcontentloaded", timeout=22000)
-    page.wait_for_timeout(900)
+    try:
+        page.locator("li.msg-conversation-listitem").first.wait_for(state="attached", timeout=12000)
+    except Exception as exc:
+        print(f"[inbox] conversation rows not loaded; page={page.url[:115]} reason={type(exc).__name__}", flush=True)
     return page.evaluate("""() => {
        const cards = [...document.querySelectorAll('li.msg-conversation-listitem')];
        return cards.map((el,index) => ({
