@@ -160,21 +160,39 @@ def main():
         print("DRY_RUN enabled: no invitations accepted or messages sent", flush=True)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch_persistent_context(
-            PROFILE, headless=False, viewport={"width":1440,"height":900},
+            PROFILE, headless=False, viewport={"width":1100,"height":720},
             args=["--disable-notifications", "--disable-gpu", "--renderer-process-limit=2"]
         )
         # Suppress heavy media downloads while keeping scripts, CSS and interactions available.
         browser.route("**/*", lambda route: route.abort() if route.request.resource_type in ("image", "media", "font") else route.continue_())
-        page = browser.pages[0] if browser.pages else browser.new_page()
-        print("[startup] Chromium launched; opening LinkedIn", flush=True)
-        page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=30000)
+        # Prefer an already signed-in LinkedIn tab over an old login or crashed tab.
+        page = next((p for p in reversed(browser.pages) if "linkedin.com" in p.url), None)
+        if page is None:
+            page = browser.pages[0] if browser.pages else browser.new_page()
+        print("[startup] Chromium launched; checking LinkedIn", flush=True)
+        if "linkedin.com" not in page.url:
+            try:
+                page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=30000)
+            except Exception as exc:
+                print(f"[session] Navigation deferred: {type(exc).__name__}: {str(exc)[:90]}", flush=True)
         if UNATTENDED:
             print("[session] Waiting for LinkedIn authenticated navigation", flush=True)
             started = time.monotonic()
             while time.monotonic() - started < LOGIN_TIMEOUT:
-                if not any(x in page.url.lower() for x in ("/login", "/checkpoint", "/authwall", "/signup")) and page.locator("nav.global-nav, header.global-nav").count():
-                    break
-                page.wait_for_timeout(1500)
+                # Browser-login interaction may navigate to or create another tab.
+                tabs = [p for p in browser.pages if "linkedin.com" in p.url]
+                for candidate in reversed(tabs):
+                    try:
+                        if (not any(x in candidate.url.lower() for x in ("/login", "/checkpoint", "/authwall", "/signup"))
+                                and candidate.locator("nav.global-nav, header.global-nav").count()):
+                            page = candidate
+                            break
+                    except Exception as exc:
+                        print(f"[session] Tab temporarily unavailable: {type(exc).__name__}", flush=True)
+                else:
+                    page.wait_for_timeout(2500) if not page.is_closed() else time.sleep(2.5)
+                    continue
+                break
             else:
                 raise RuntimeError("LinkedIn login not confirmed; browser access required")
         else:
