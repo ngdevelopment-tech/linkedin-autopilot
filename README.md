@@ -27,7 +27,7 @@ LinkedIn browser
                                      |
                                      +--> Reply generator
                                              |
-                                             +--> Optional OpenAI API
+                                             +--> Optional language-model service
                                              +--> Deterministic fallback
                                      |
                                      +--> UI send + confirmation
@@ -51,7 +51,7 @@ LinkedIn browser
 
 ## Requirements
 
-Python 3.11+, a desktop environment for interactive browser login, and a LinkedIn account under your control. An OpenAI API key is optional. No LinkedIn password or cookie is embedded in the source.
+Python 3.11+, a desktop environment for interactive browser login, and a LinkedIn account under your control. An language-model API key is optional. No LinkedIn password or cookie is embedded in the source.
 
 ## Run on Windows
 
@@ -78,7 +78,7 @@ The default `DRY_RUN=true` previews detected actions without accepting invitatio
 | `MAX_THREADS` | `40` | Maximum conversations scanned per cycle |
 | `BASELINE_ON_START` | `true` | Treat existing latest inbound messages as already seen |
 | `ALLOWED_SENDER_NAMES` | empty | Optional comma-separated sender allowlist |
-| `OPENAI_API_KEY` | empty | Optional private AI API key |
+| `OPENAI_API_KEY` | empty | Optional private language-model API credential |
 | `OPENAI_MODEL` | `gpt-4.1-mini` | Model for contextual responses |
 | `BROWSER_PROFILE_DIR` | `.browser-profile` | Persistent Chromium browser data |
 | `STATE_DB_PATH` | `.state/messages.db` | SQLite processing state |
