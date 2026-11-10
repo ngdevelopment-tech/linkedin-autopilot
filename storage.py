@@ -23,15 +23,21 @@ class State:
         self.db.execute("INSERT INTO handled (key,status) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET status=excluded.status", (key,status))
         self.db.commit()
 
-    def claim_thread(self, thread_id):
-        """Durable at-most-one send attempt per thread for controlled testing.
+    def claim_message(self, key):
+        """Atomically reserve one specific inbound message before any Send click.
 
-        A successful claim remains held even if LinkedIn times out after clicking
-        Send. This intentionally favors missing a reply over duplicate messages.
+        A pending claim is retained on timeout, crash or restart: ambiguous
+        sends must never be retried automatically.
         """
-        key = self.fingerprint("thread-send-once", thread_id, "v1")
         cursor = self.db.execute(
             "INSERT OR IGNORE INTO handled (key,status) VALUES (?,?)",
-            (key, "send-attempted"))
+            (key, "pending"))
         self.db.commit()
         return cursor.rowcount == 1
+
+    def complete_message(self, key):
+        # Do not create a completion row without an earlier durable claim.
+        self.db.execute(
+            "UPDATE handled SET status='done' WHERE key=? AND status='pending'",
+            (key,))
+        self.db.commit()
