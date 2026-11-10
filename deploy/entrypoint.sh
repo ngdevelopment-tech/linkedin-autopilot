@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-Xvfb :99 -screen 0 1440x900x24 -nolisten tcp &
+mkdir -p /data/browser /data/state
+chown -R pwuser:pwuser /data
+runuser -u pwuser -- Xvfb :99 -screen 0 1440x900x24 -nolisten tcp &
 sleep 1
-fluxbox >/dev/null 2>&1 &
+runuser -u pwuser -- fluxbox >/dev/null 2>&1 &
 
 if [[ -n "${BROWSER_ACCESS_PASSWORD:-}" ]]; then
   x11vnc -display :99 -rfbport 5900 -localhost -nopw -forever -shared -quiet >/dev/null 2>&1 &
@@ -47,4 +49,4 @@ else
   echo "[browser] remote display disabled: configure BROWSER_ACCESS_PASSWORD" >&2
 fi
 
-exec python bot.py
+exec runuser -u pwuser -- /opt/venv/bin/python bot.py
