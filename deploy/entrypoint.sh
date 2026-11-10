@@ -15,7 +15,7 @@ mkdir -p /tmp/.X11-unix
 chmod 1777 /tmp/.X11-unix
 if [[ -e /tmp/.X99-lock ]] && ! pgrep -x Xvfb >/dev/null; then rm -f /tmp/.X99-lock; fi
 if ! pgrep -x Xvfb >/dev/null; then
-  runuser -u pwuser -- Xvfb :99 -screen 0 1440x900x24 -nolisten tcp &
+  runuser -u pwuser -- Xvfb :99 -screen 0 1024x720x16 -nolisten tcp &
 fi
 for attempt in $(seq 1 30); do
   if runuser -u pwuser -- xdpyinfo -display :99 >/dev/null 2>&1; then break; fi
