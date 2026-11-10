@@ -28,7 +28,8 @@ EXTRACT_THREAD = r"""() => {
  return nodes.map(node => {
    const cls = String(node.className || '');
    const mine = /--outbound|--self|outgoing|from-me/i.test(cls) ||
-      !!node.querySelector('.msg-s-message-group__profile-link--outbound');
+      !!node.closest('.msg-s-message-group--outbound, .msg-s-message-group--self') ||
+      !!node.querySelector('.msg-s-message-group--outbound, .msg-s-message-group__profile-link--outbound, [data-message-direction="outbound"]');
    const body = node.querySelector('.msg-s-event-listitem__body, .msg-s-event-listitem__message-bubble, .msg-s-message-group__message, .msg-s-event-listitem__message-body');
    const text = (body?.innerText || '').trim();
    const attachment = !!node.querySelector('a[href*="/attachment/"], a[href*="/dms/document/"], [data-attachment-id], .msg-s-event-listitem__attachment');
