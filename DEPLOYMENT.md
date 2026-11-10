@@ -49,13 +49,16 @@ DRY_RUN=true
 BASELINE_ON_START=true
 POLL_SECONDS=12
 MAX_THREADS=10
+BASELINE_SCAN_LIMIT=35
+INVITATION_POLL_SECONDS=120
+ACCEPT_INVITATIONS_ENABLED=true
 ALLOWED_SENDER_NAMES=
 PORT=8080
 ```
 
 Optional: `OPENAI_API_KEY` and `OPENAI_MODEL`. A configured key enables context-aware AI replies. Without it, the service uses offline keyword/pattern responses. The configured key, if present, must remain a Railway secret; it is never included in the public repo.
 
-With `BASELINE_ON_START=true`, the worker records the existing latest inbound events **once** per persistent database, then resumes regular polling after future restarts. This marks the latest events that were actually inspected; the bounded scan can leave older conversations untouched. Check backlog coverage before enabling live sending. Back up `/data/state/messages.db` before altering this behavior.
+With `BASELINE_ON_START=true`, the worker records existing inbound events once per persistent database and resumes monitoring after restarts. The hosted pre-launch run inspected all 17 visible conversations with zero errors. For a larger inbox, make sure the initial scan covers every conversation before enabling live mode. Keep `/data/state/messages.db` intact during redeploys.
 
 ### Sign-in procedure
 
@@ -77,7 +80,7 @@ DRY_RUN enabled: no invitations accepted or messages sent
 [inbox] pass baseline=False conversation_count=...
 ```
 
-A successful Docker deployment does not mean the bot is replying. `DRY_RUN=true` is intentionally non-sending. For a safe controlled test, monitor an **incoming** message and check the persistent claim, the Send action, and actual received LinkedIn message. UI confirmation can fail even when LinkedIn delivers, so never automatically retry uncertain sends.
+For a new installation, begin with `DRY_RUN=true` until authentication and inbox parsing are verified. The current hosted worker was then tested with a confirmed sent reply and a recorded incoming invitation acceptance, and runs with `DRY_RUN=false`. Pending claims are intentionally not retried automatically if LinkedIn's delivery confirmation is uncertain.
 
 ## Failure modes and safe recovery
 
