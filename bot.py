@@ -20,6 +20,7 @@ PROFILE = str(Path(os.getenv("BROWSER_PROFILE_DIR", ".browser-profile")).absolut
 STATE_DB = os.getenv("STATE_DB_PATH", ".state/messages.db")
 UNATTENDED = os.getenv("UNATTENDED", "false").lower() == "true"
 LOGIN_TIMEOUT = max(60, int(os.getenv("LOGIN_TIMEOUT_SECONDS", "900")))
+HEADLESS = os.getenv("BROWSER_HEADLESS", "false").lower() == "true"
 
 EXTRACT_THREAD = r"""() => {
  const main = document.querySelector('.msg-s-message-list, .msg-thread, [data-view-name="message-list"]') || document;
@@ -154,62 +155,69 @@ def inbox_pass(page, state, baseline=False):
         except Exception as exc:
             print(f"[message] {type(exc).__name__}: {str(exc)[:120]}", flush=True)
 
+def wait_for_login(browser, page):
+    """Recover a failed LinkedIn renderer without losing persistent cookies."""
+    print("[session] Checking LinkedIn authentication", flush=True)
+    started = time.monotonic()
+    consecutive_errors = 0
+    last_status = 0.0
+    while time.monotonic() - started < LOGIN_TIMEOUT:
+        try:
+            if page.is_closed():
+                raise RuntimeError("page closed")
+            url = page.url.lower()
+            if not any(x in url for x in ("/login", "/checkpoint", "/authwall", "/signup")):
+                if page.locator("nav.global-nav, header.global-nav").count():
+                    print("[session] Authenticated LinkedIn navigation confirmed", flush=True)
+                    return page
+            consecutive_errors = 0
+            if time.monotonic() - last_status > 30:
+                print(f"[session] Awaiting login; page={url[:110]}", flush=True)
+                last_status = time.monotonic()
+            page.wait_for_timeout(2200)
+        except Exception as exc:
+            consecutive_errors += 1
+            print(f"[session] Renderer unavailable ({consecutive_errors}): {type(exc).__name__}", flush=True)
+            try:
+                page.close()
+            except Exception:
+                pass
+            time.sleep(min(4, consecutive_errors))
+            page = browser.new_page()
+            try:
+                page.goto("https://www.linkedin.com/messaging/", wait_until="domcontentloaded", timeout=20000)
+            except Exception as nav_exc:
+                print(f"[session] Recovery navigation: {type(nav_exc).__name__}", flush=True)
+    raise RuntimeError("LinkedIn login not confirmed before deadline")
+
+
 def main():
-    print("Inbound LinkedIn worker starting", flush=True)
+    print(f"Inbound LinkedIn worker starting: headless={HEADLESS}", flush=True)
     if DRY:
         print("DRY_RUN enabled: no invitations accepted or messages sent", flush=True)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch_persistent_context(
-            PROFILE, headless=False, viewport={"width":960,"height":640},
-            args=["--disable-notifications", "--disable-gpu", "--renderer-process-limit=2", "--disk-cache-size=8388608", "--media-cache-size=1048576", "--disable-breakpad", "--disable-extensions"]
+            PROFILE, headless=HEADLESS, viewport={"width":960,"height":640},
+            args=["--disable-notifications", "--disable-gpu", "--renderer-process-limit=2",
+                  "--disk-cache-size=8388608", "--media-cache-size=1048576",
+                  "--disable-breakpad", "--disable-extensions"]
         )
-        # Suppress heavy media downloads while keeping scripts, CSS and interactions available.
-        browser.route("**/*", lambda route: route.abort() if route.request.resource_type in ("image", "media", "font") else route.continue_())
-        # Prefer an already signed-in LinkedIn tab over an old login or crashed tab.
-        page = next((p for p in reversed(browser.pages) if "linkedin.com" in p.url), None)
+        browser.route("**/*", lambda route: route.abort()
+                      if route.request.resource_type in ("image", "media", "font")
+                      else route.continue_())
+        # Avoid reopening the heavyweight feed; restore cookies and visit messaging directly.
+        page = next((p for p in reversed(browser.pages) if "linkedin.com" in p.url and not p.is_closed()), None)
         if page is None:
-            page = browser.pages[0] if browser.pages else browser.new_page()
-        print("[startup] Chromium launched; checking LinkedIn", flush=True)
-        if "linkedin.com" not in page.url:
-            try:
-                page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=30000)
-            except Exception as exc:
-                print(f"[session] Navigation deferred: {type(exc).__name__}: {str(exc)[:90]}", flush=True)
+            page = browser.new_page()
+        print("[startup] Chromium launched; checking messaging login", flush=True)
+        try:
+            page.goto("https://www.linkedin.com/messaging/", wait_until="domcontentloaded", timeout=25000)
+        except Exception as exc:
+            print(f"[startup] LinkedIn navigation: {type(exc).__name__}", flush=True)
         if UNATTENDED:
-            print("[session] Waiting for LinkedIn authenticated navigation", flush=True)
-            started = time.monotonic()
-            while time.monotonic() - started < LOGIN_TIMEOUT:
-                # Browser-login interaction may navigate to or create another tab.
-                tabs = [p for p in browser.pages if "linkedin.com" in p.url]
-                for candidate in reversed(tabs):
-                    try:
-                        if (not any(x in candidate.url.lower() for x in ("/login", "/checkpoint", "/authwall", "/signup"))
-                                and candidate.locator("nav.global-nav, header.global-nav").count()):
-                            page = candidate
-                            break
-                    except Exception as exc:
-                        print(f"[session] Tab temporarily unavailable: {type(exc).__name__}", flush=True)
-                else:
-                    try:
-                        page.wait_for_timeout(2500) if not page.is_closed() else time.sleep(2.5)
-                    except Exception:
-                        # A renderer may crash under memory pressure; open a clean tab.
-                        try:
-                            page.close()
-                        except Exception:
-                            pass
-                        page = browser.new_page()
-                        try:
-                            page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=25000)
-                        except Exception as exc:
-                            print(f"[session] Recovery navigation: {type(exc).__name__}", flush=True)
-                        time.sleep(2)
-                    continue
-                break
-            else:
-                raise RuntimeError("LinkedIn login not confirmed; browser access required")
+            page = wait_for_login(browser, page)
         else:
-            input("Log in manually in the browser; press Enter once the feed is visible.")
+            input("Log in manually in the browser; press Enter once messaging is visible.")
         print(f"[session] LinkedIn page={page.url}; authenticated navigation detected", flush=True)
         state = State(STATE_DB)
         if BASELINE:
@@ -224,6 +232,16 @@ def main():
                 break
             except Exception as exc:
                 print(f"[loop] {type(exc).__name__}: {str(exc)[:120]}", flush=True)
+                if "Target" in str(exc) or "crashed" in str(exc).lower():
+                    try:
+                        page.close()
+                    except Exception:
+                        pass
+                    page = browser.new_page()
+                    try:
+                        page.goto("https://www.linkedin.com/messaging/", wait_until="domcontentloaded", timeout=20000)
+                    except Exception:
+                        pass
             time.sleep(POLL)
         browser.close()
 
