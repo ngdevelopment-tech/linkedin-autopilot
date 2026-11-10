@@ -24,16 +24,25 @@ HEADLESS = os.getenv("BROWSER_HEADLESS", "false").lower() == "true"
 
 EXTRACT_THREAD = r"""() => {
  const main = document.querySelector('.msg-s-message-list, .msg-thread, [data-view-name="message-list"]') || document;
- const nodes = [...main.querySelectorAll('.msg-s-message-list__event, .msg-s-event-listitem, li.msg-s-message-list__event')];
+ // Nested selectors previously extracted individual events twice.
+ let nodes = [...main.querySelectorAll('.msg-s-message-list__event')];
+ if (!nodes.length) nodes = [...main.querySelectorAll('.msg-s-event-listitem')];
  return nodes.map(node => {
-   const cls = String(node.className || '');
-   const mine = /--outbound|--self|outgoing|from-me/i.test(cls) ||
-      !!node.closest('.msg-s-message-group--outbound, .msg-s-message-group--self') ||
-      !!node.querySelector('.msg-s-message-group--outbound, .msg-s-message-group__profile-link--outbound, [data-message-direction="outbound"]');
+   const group = node.closest('.msg-s-message-group');
+   const combined = String(node.className || '') + ' ' + String(group?.className || '');
+   const attr = (node.getAttribute('data-message-direction') || group?.getAttribute('data-message-direction') || '').toLowerCase();
+   const sender = group?.querySelector('.msg-s-message-group__profile-link');
+   const senderCls = String(sender?.className || '');
+   const isOutgoing = /--outbound|--self|outgoing|from-me/i.test(combined) ||
+       attr === 'outbound' || /--outbound/.test(senderCls);
+   const isIncoming = /--inbound|incoming|from-other/i.test(combined) ||
+       attr === 'inbound' || (!!sender && !isOutgoing);
+   const direction = isOutgoing ? 'outbound' : isIncoming ? 'inbound' : 'unknown';
    const body = node.querySelector('.msg-s-event-listitem__body, .msg-s-event-listitem__message-bubble, .msg-s-message-group__message, .msg-s-event-listitem__message-body');
    const text = (body?.innerText || '').trim();
    const attachment = !!node.querySelector('a[href*="/attachment/"], a[href*="/dms/document/"], [data-attachment-id], .msg-s-event-listitem__attachment');
-   return {text, mine, attachment, id:node.getAttribute('data-event-urn') || node.id || ''};
+   const id = node.getAttribute('data-event-urn') || node.getAttribute('data-message-id') || node.id || '';
+   return {text, direction, mine:direction === 'outbound', attachment, id};
  }).filter(item => item.text || item.attachment);
 }"""
 
@@ -120,7 +129,7 @@ def send_reply(page, answer):
     while time.monotonic() < deadline:
         page.wait_for_timeout(250)
         events = thread_messages(page)
-        if events and events[-1]["mine"] and events[-1]["text"].strip() == answer.strip():
+        if any(e["direction"] == "outbound" and e["text"].strip() == answer.strip() for e in events[-4:]):
             return True
     raise RuntimeError("Unconfirmed send; message left pending for manual inspection")
 
@@ -136,14 +145,21 @@ def inbox_pass(page, state, baseline=False):
                 continue
             events = thread_messages(page)
             if baseline or DRY:
-                latest_mine = events[-1]["mine"] if events else None
+                direction = events[-1]["direction"] if events else "empty"
+                stable_id = bool(events and events[-1]["id"])
                 thread_index = item.get("index")
-                print(f"[inbox] thread={thread_index} messages={len(events)} latest_mine={latest_mine}", flush=True)
-            if not events or events[-1]["mine"]:
+                print(f"[inbox] thread={thread_index} messages={len(events)} direction={direction} stable_id={stable_id}", flush=True)
+            # A reply is safe only if authorship is positively identified as inbound.
+            if not events or events[-1]["direction"] != "inbound":
                 continue
             last = events[-1]
             thread = page.url.split("?")[0]
-            key = State.fingerprint(thread, last["id"] or str(len(events)),
+            # Never use a shifting message count as the event identity.
+            # Without a stable event identifier, refuse to send to prevent duplicates.
+            if not last["id"]:
+                print("[inbox] inbound event lacks stable ID; skipping automatic reply", flush=True)
+                continue
+            key = State.fingerprint(thread, last["id"],
                 last["text"] + (" [attachment]" if last["attachment"] else ""))
             if state.status(key):
                 continue
@@ -152,18 +168,17 @@ def inbox_pass(page, state, baseline=False):
                 continue
             reply = generate_reply(last["text"], events[:-1][-6:], last["attachment"])
             fresh = thread_messages(page)
-            if len(fresh) != len(events) or not fresh or fresh[-1]["mine"] or fresh[-1]["text"] != last["text"] or fresh[-1]["id"] != last["id"]:
+            if len(fresh) != len(events) or not fresh or fresh[-1]["direction"] != "inbound" or fresh[-1]["text"] != last["text"] or fresh[-1]["id"] != last["id"]:
                 continue
             if DRY:
                 print("[dry-run] Inbound message identified; reply not sent", flush=True)
                 continue
-            # Claim the thread before clicking Send; do not retry on ambiguity.
-            if not state.claim_thread(thread):
-                print("[message] thread already has live send attempt; skipping", flush=True)
+            # Atomic per-message claim is durable even if Send confirmation fails.
+            if not state.claim_message(key):
+                print("[message] inbound event was already attempted; skipping", flush=True)
                 continue
-            state.mark(key, "pending")
             if send_reply(page, reply):
-                state.mark(key, "done")
+                state.complete_message(key)
                 print("[message] reply confirmed", flush=True)
         except Exception as exc:
             print(f"[message] {type(exc).__name__}: {str(exc)[:120]}", flush=True)
