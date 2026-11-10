@@ -4,6 +4,12 @@ set -Eeuo pipefail
 export DISPLAY=:99
 mkdir -p /data/browser /data/state
 chown -R pwuser:pwuser /data
+# A Railway restart changes the host identity; Chromium's old singleton symlinks become stale.
+# Remove only process-lock links after confirming this container has no running Chromium.
+if ! pgrep -f '/ms-playwright/.*/chrome-linux64/chrome' >/dev/null; then
+  rm -f /data/browser/SingletonLock /data/browser/SingletonSocket /data/browser/SingletonCookie
+  echo '[startup] cleared stale Chromium singleton links (profile contents preserved)' >&2
+fi
 # Create a private X11 socket directory and start a fresh display.
 mkdir -p /tmp/.X11-unix
 chmod 1777 /tmp/.X11-unix
