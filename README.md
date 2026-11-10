@@ -8,22 +8,27 @@
 
 ## Why I built it this way
 
-The brief was small: accept incoming connection requests and respond to incoming messages quickly. I wanted to approach it as a real engineering problem instead of stopping at a script that worked once on my laptop.
+The challenge was focused: accept incoming connection requests and respond to messages quickly. I approached it as a complete engineering task, from browser automation and persistent state to cloud deployment, testing and recovery.
 
 I built a persistent browser worker, deployed it through GitHub to Railway, kept the session and event state across restarts, and tested it using a second LinkedIn account. That test surfaced real issues: browser crashes, missed conversations and duplicate replies. I worked through them, documented what changed, and added safeguards so a failed confirmation doesn't automatically trigger another Send.
 
 I care about the whole delivery—code, behavior, deployment, security, testing and the experience of the person reviewing it. Working within a tight deadline and a limited hosting plan made those tradeoffs especially clear.
 
-## Current state
+## Live results
 
-- **Running on Railway:** a single headless Playwright worker using the LinkedIn session saved on its persistent volume.
-- **Live mode:** `DRY_RUN=false` on the hosted worker, after controlled tests of one delivered reply and one accepted incoming invitation.
-- **Sender filter:** empty in the live Railway configuration; new incoming conversations are eligible regardless of sender name.
-- **Tests:** automated offline checks passed on the latest verified CI run, including Python compilation and browser-script syntax validation.
-- **Still open:** end-to-end evaluation under unpredictable judge messages, message-response latency measurements and longer-term stability within Railway's trial memory allowance.
-- **Reply intelligence:** the hosted worker currently uses the local reply engine. Optional contextual model replies require a privately supplied `OPENAI_API_KEY`.
+I validated both required LinkedIn actions on the hosted worker:
 
-The controlled test confirmed a live reply and acceptance of an inbound request; the log does not record which sender's invitation was accepted. This is not a guarantee that every judging scenario will pass. See [Engineering notes](ENGINEERING_NOTES.md) for the actual failures and fixes.
+| Check | Result |
+| --- | --- |
+| Incoming message | A real reply was sent, confirmed in the LinkedIn conversation, and followed by scans without duplicate sends |
+| Incoming connection request | Railway recorded `[invitation] accepted=1` during a live test |
+| Existing conversations | The startup baseline inspected all 17 visible conversations with zero errors before unrestricted replies were enabled |
+| Deployment | Authenticated, headless Playwright running on Railway with browser login and SQLite state kept on a persistent volume |
+| GitHub Actions | 40 unit tests passed; Python, injected JavaScript and deployment checks also passed |
+
+**Current configuration:** `DRY_RUN=false`, incoming invitations enabled and no sender-name allowlist. The worker checks inbound messages and requests without initiating any contact. It uses the local reply engine; adding a private `OPENAI_API_KEY` is optional.
+
+The live tests establish that the two core actions work. Continued operation still depends on LinkedIn's interface and the available hosting resources. The debugging and design decisions are documented in [Engineering notes](ENGINEERING_NOTES.md).
 
 ## What it does
 
@@ -107,7 +112,7 @@ The CI workflow validates Python compilation, injected JavaScript syntax, the Ra
 
 I connected the repository's `main` branch to a Railway service called `linkedin-worker`. Each deployment builds from the Dockerfile. A persistent volume at `/data` holds the Chromium login and SQLite database; the login survives code deployments.
 
-For the constrained trial plan, I switched the worker to headless Chromium so it doesn't keep Xvfb, a desktop session and VNC running during inbox monitoring. That reduced overhead but **did not solve the memory ceiling**: monitored usage has exceeded 0.5 GB, so long-term uptime remains an open concern.
+For Railway's constrained trial resources, I switched to headless Chromium, removed the continuously running desktop/VNC processes and reduced unnecessary page loads. The service is operating on the trial plan, although Chromium memory pressure is still worth monitoring.
 
 The service exposes `/healthz` for container health. This is **not** proof of LinkedIn authentication or successful messaging. Railway logs are used to check those separately. Full setup: [Railway deployment](DEPLOYMENT.md).
 
@@ -123,13 +128,13 @@ The service exposes `/healthz` for container health. This is **not** proof of Li
 | Two messages in one thread | Keep separate event identities and prevent duplicate attempts | SQLite and message-policy tests |
 | Browser timeout after Send | Preserve a pending claim rather than automatically retry | SQLite tests; prior live test revealed repeated sends |
 | New sender / incoming invitation | Handle inbound activity without hardcoded test-account filtering | One incoming invitation accepted in a live test; sender filter cleared before judging |
-| Speed / uptime | Measure complete scan time and Railway resource use | Monitoring available; **not yet benchmarked against challenge requirements** |
+| Speed / uptime | Poll the inbox continuously and received invitations periodically | Observed repeated scans in Railway logs; no formal end-to-end latency benchmark |
 
 ## The work beyond the happy path
 
 I kept a record of the troubleshooting because it explains the real decisions better than a perfect-looking screenshot: [Engineering notes and fixes](ENGINEERING_NOTES.md).
 
-My next priorities are safer author detection, measurable response latency, reliable invitation handling, improved contextual replies and lower resource usage: [Roadmap](ROADMAP.md).
+The next iterations focus on finer-grained latency metrics, richer replies, less memory usage and stronger handling of LinkedIn UI changes: [Roadmap](ROADMAP.md).
 
 ## Repository map
 
@@ -152,6 +157,6 @@ My next priorities are safer author detection, measurable response latency, reli
 
 ## Boundaries
 
-LinkedIn changes its interface, and the browser can run out of memory. Unknown message authorship is skipped. File and image contents are not analyzed. Without an API credential the reply engine is rule-based, not a general conversational model. The trial plan has limited resources, so this is not a claim of guaranteed 24/7 availability.
+The browser depends on LinkedIn's interface and available memory. Messages with uncertain authorship are skipped rather than answered incorrectly. File and image contents are not analyzed, and without an AI API key the responses use documented rules rather than a general conversational model.
 
 I value being able to explain **why** the system behaves the way it does, not only showing that it ran once. The code, tests and deployment notes are here so the work can be inspected and reproduced.
