@@ -76,14 +76,29 @@ def sender_name(page):
 
 def get_threads(page):
     page.goto("https://www.linkedin.com/messaging/", wait_until="domcontentloaded", timeout=25000)
-    page.wait_for_timeout(500)
-    return page.evaluate("""() => {
-       const cards = [...document.querySelectorAll('li.msg-conversation-listitem, .msg-conversation-card')];
-       return cards.map((el,index) => ({
+    page.wait_for_timeout(2500)
+    discovery = page.evaluate("""() => {
+       const selectors = [
+         'li.msg-conversation-listitem', '.msg-conversation-card',
+         '[class*="conversation-listitem"]', '[data-view-name*="conversation"]',
+         'a[href*="/messaging/thread/"]'
+       ];
+       const counts = selectors.map(sel => document.querySelectorAll(sel).length);
+       const cards = [...document.querySelectorAll('li.msg-conversation-listitem, .msg-conversation-card, [class*="conversation-listitem"]')];
+       const unique = [...new Set(cards)];
+       const threads = unique.map((el,index) => ({
          index, href: el.querySelector('a[href*="/messaging/thread/"]')?.href || '',
          unread: /unread/i.test(el.className) || !!el.querySelector('[class*="unread"], [aria-label*="unread"]')
        }));
+       return {
+         threads, counts, title: document.title.slice(0,75),
+         classes: [...document.querySelectorAll('main, li, section')].slice(0,100)
+           .map(el => String(el.className || '').slice(0,85))
+           .filter(c => /msg-|conversation|messag/i.test(c)).slice(0,12)
+       };
     }""")
+    print(f"[inbox] discovery page={page.url[:110]} selectors={discovery['counts']} examples={discovery['classes']}", flush=True)
+    return discovery["threads"]
 
 def open_thread(page, item):
     if item["href"]:
