@@ -10,6 +10,27 @@ if ! pgrep -f '/ms-playwright/.*/chrome-linux64/chrome' >/dev/null; then
   rm -f /data/browser/SingletonLock /data/browser/SingletonSocket /data/browser/SingletonCookie
   echo '[startup] cleared stale Chromium singleton links (profile contents preserved)' >&2
 fi
+if [[ "${BROWSER_HEADLESS:-false}" == "true" ]]; then
+  echo "[startup] headless mode: no Xvfb, desktop manager or VNC processes" >&2
+  # A tiny authenticated-free readiness endpoint; never expose browser profile or secrets.
+  cat >/tmp/health-nginx.conf <<'EOF'
+user www-data;
+worker_processes 1;
+pid /tmp/health-nginx.pid;
+error_log /dev/stderr warn;
+events { worker_connections 128; }
+http {
+  access_log off;
+  server {
+    listen 8080;
+    server_name _;
+    location = /healthz { default_type text/plain; return 200 "worker process booted\n"; }
+    location / { return 404; }
+  }
+}
+EOF
+  nginx -c /tmp/health-nginx.conf -g 'daemon off;' &
+else
 # Create a private X11 socket directory and start a fresh display.
 mkdir -p /tmp/.X11-unix
 chmod 1777 /tmp/.X11-unix
@@ -84,6 +105,8 @@ EOF
   echo "[browser] authenticated remote display enabled" >&2
 else
   echo "[browser] remote display disabled: configure BROWSER_ACCESS_PASSWORD" >&2
+fi
+
 fi
 
 exec runuser -u pwuser -- /opt/venv/bin/python bot.py
