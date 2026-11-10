@@ -17,13 +17,13 @@ I care about the whole delivery—code, behavior, deployment, security, testing 
 ## Current state
 
 - **Running on Railway:** a single headless Playwright worker using the LinkedIn session saved on its persistent volume.
-- **Safety mode:** `DRY_RUN=true`; no invitations are accepted and no messages are sent while I finish verification.
-- **Sender filter:** configurable; no reviewer-specific sender is hardcoded.
+- **Live mode:** `DRY_RUN=false` on the hosted worker, after controlled tests of one delivered reply and one accepted incoming invitation.
+- **Sender filter:** empty in the live Railway configuration; new incoming conversations are eligible regardless of sender name.
 - **Tests:** automated offline checks passed on the latest verified CI run, including Python compilation and browser-script syntax validation.
-- **Still open:** a fresh end-to-end live test of message delivery and invitation acceptance, and longer-term stability within Railway's trial memory allowance.
+- **Still open:** end-to-end evaluation under unpredictable judge messages, message-response latency measurements and longer-term stability within Railway's trial memory allowance.
 - **Reply intelligence:** the hosted worker currently uses the local reply engine. Optional contextual model replies require a privately supplied `OPENAI_API_KEY`.
 
-This is an honest snapshot, not a claim that every live scenario is solved. See [Engineering notes](ENGINEERING_NOTES.md) for the actual failures and fixes.
+The controlled test confirmed a live reply and acceptance of an inbound request; the log does not record which sender's invitation was accepted. This is not a guarantee that every judging scenario will pass. See [Engineering notes](ENGINEERING_NOTES.md) for the actual failures and fixes.
 
 ## What it does
 
@@ -122,7 +122,7 @@ The service exposes `/healthz` for container health. This is **not** proof of Li
 | Rude or unknown personal question | Keep a calm tone and avoid fabricated claims | Local reply tests |
 | Two messages in one thread | Keep separate event identities and prevent duplicate attempts | SQLite and message-policy tests |
 | Browser timeout after Send | Preserve a pending claim rather than automatically retry | SQLite tests; prior live test revealed repeated sends |
-| New sender / incoming invitation | Handle inbound activity without hardcoded test-account filtering | Controlled acceptance and replies verified; open-inbox reliability remains under observation |
+| New sender / incoming invitation | Handle inbound activity without hardcoded test-account filtering | One incoming invitation accepted in a live test; sender filter cleared before judging |
 | Speed / uptime | Measure complete scan time and Railway resource use | Monitoring available; **not yet benchmarked against challenge requirements** |
 
 ## The work beyond the happy path
