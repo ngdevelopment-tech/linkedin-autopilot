@@ -8,7 +8,7 @@ def test_attachment():
     assert "look at" in fallback("", has_attachment=True)
 
 def test_link():
-    assert "link" in fallback("https://example.org")
+    assert "link" in fallback("https://github.com")
 
 def test_emoji():
     assert "What's up" in fallback("🙂")
