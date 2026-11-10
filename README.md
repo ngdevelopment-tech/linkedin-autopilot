@@ -86,7 +86,7 @@ python -m compileall -q bot.py replies.py storage.py message_policy.py
 python -m pytest -q
 ```
 
-GitHub Actions runs Python compilation, shell syntax validation, and the unit tests on each push and pull request. Tests cover outbound/inbound gating, repeated text, distinct messages in a thread, cross-thread deduplication, restart persistence and unusual-language reply fallbacks. They do **not** log in to LinkedIn or send test messages.
+A reviewer can also run the **offline showcase** with `python demo.py`: it prints examples of greetings, projects, emoji, languages, links, attachments, long messages and unusual questions without requiring a LinkedIn login or API key.\n\nGitHub Actions runs Python compilation, shell syntax validation, and the unit tests on each push and pull request. Tests cover outbound/inbound gating, repeated text, distinct messages in a thread, cross-thread deduplication, restart persistence and unusual-language reply fallbacks. They do **not** log in to LinkedIn or send test messages.
 
 ## Configuration
 
