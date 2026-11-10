@@ -144,12 +144,13 @@ def inbox_pass(page, state, baseline=False):
             fresh = thread_messages(page)
             if len(fresh) != len(events) or not fresh or fresh[-1]["mine"] or fresh[-1]["text"] != last["text"] or fresh[-1]["id"] != last["id"]:
                 continue
+            if DRY:
+                print("[dry-run] Inbound message identified; reply not sent", flush=True)
+                continue
             state.mark(key, "pending")
             if send_reply(page, reply):
                 state.mark(key, "done")
                 print("[message] reply confirmed", flush=True)
-            else:
-                state.mark(key, "dry-run")
         except Exception as exc:
             print(f"[message] {type(exc).__name__}: {str(exc)[:120]}", flush=True)
 
