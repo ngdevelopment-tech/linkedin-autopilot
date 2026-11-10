@@ -122,6 +122,7 @@ def send_reply(page, answer):
 
 def inbox_pass(page, state, baseline=False):
     threads = sorted(get_threads(page), key=lambda item: not item["unread"])
+    print(f"[inbox] pass baseline={baseline} conversation_count={len(threads)}", flush=True)
     for item in threads[:MAX_THREADS]:
         try:
             if not open_thread(page, item):
@@ -130,6 +131,8 @@ def inbox_pass(page, state, baseline=False):
             if ALLOW and sender.casefold() not in ALLOW:
                 continue
             events = thread_messages(page)
+            if baseline or DRY:
+                print(f"[inbox] thread={item[\'index\']} messages={len(events)} latest_mine={events[-1][\'mine\'] if events else None}", flush=True)
             if not events or events[-1]["mine"]:
                 continue
             last = events[-1]
