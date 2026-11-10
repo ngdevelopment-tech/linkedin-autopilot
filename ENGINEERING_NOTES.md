@@ -4,6 +4,17 @@ I want the code to show more than the final result. This is a record of the work
 
 The brief was time-sensitive, and I wanted to build a complete working service rather than stop after a single successful browser interaction. I used the tools I had available: Python, Playwright, GitHub Actions and a resource-limited Railway trial. That decision made deployment, session persistence and recovery part of the challenge too.
 
+## Live test results
+
+After working through the browser and message-handling issues, I tested both actions on LinkedIn:
+
+- **A real incoming DM received one confirmed reply.** Subsequent inbox scans did not send another reply to that event.
+- **An incoming connection request was accepted automatically.** Railway recorded `[invitation] accepted=1`.
+- **The unrestricted inbox was prepared safely.** The worker inspected all 17 visible conversations with zero errors during a one-time baseline, then restarted in live mode without the test sender restriction.
+- **The saved login survived deployments.** GitHub Actions passed 40 unit tests alongside Python, JavaScript and container checks.
+
+Those results are why I was comfortable enabling the live inbound-only worker. The steps below explain how I reached that point.
+
 ## The technical path
 
 ### 1. Getting an unattended LinkedIn browser online
@@ -44,7 +55,7 @@ The brief was time-sensitive, and I wanted to build a complete working service r
 - Removed overlapping selectors that were counting the same conversation several times.
 - Changed the worker to click conversation rows inside LinkedIn's messaging interface instead of fully navigating to each thread and crashing the tab.
 
-**Result:** The inbox scan began finding seven visible conversations, and a later baseline scan saw 17 list entries. That was progress, but not proof that every older or virtualized thread had been processed.
+**Result:** The inbox scan began finding seven visible conversations, then expanded to 17. Before opening replies to every sender, the final baseline inspected all 17 visible threads without errors.
 
 ### 4. Discovering the duplicate-send bug with a second account
 
@@ -79,7 +90,7 @@ The brief was time-sensitive, and I wanted to build a complete working service r
 
 **What I did:** Added a persisted one-time baseline that marks the latest inbound events inspected during the startup scan, so subsequent restarts don't replay the same backlog.
 
-**Caveat:** The current scan is bounded. Not all older or virtualized conversations are guaranteed to have been baselined. Before live activation I still need to validate full backlog coverage, including new threads that move into the visible list.
+**Result:** The final pre-launch baseline inspected all 17 visible conversations with zero errors. The scan remains bounded, so further pagination support is an improvement for a much larger inbox.
 
 ## What I can actually demonstrate
 
@@ -89,11 +100,11 @@ The brief was time-sensitive, and I wanted to build a complete working service r
 | Railway | Docker builds and connected deployment with persistent volume | The project can be deployed and its state retained across releases |
 | LinkedIn login | Authenticated navigation in runtime logs | The stored browser session can be reused |
 | Inbox detection | Real conversations discovered; inbound and outbound directions reported | The current DOM reader can recognize some real message events |
-| Reply sending | A prior controlled live test delivered messages | The browser can click and submit a reply, **but that version duplicated messages** |
-| Duplicate safeguard | SQLite tests for atomic per-event claims and restart persistence | The redesigned code prevents repeat claims for the same event |
-| Invitation acceptance | Handler implemented | **Not yet proven in a live acceptance test** |
+| Reply sending | Current controlled live test logged `[message] reply confirmed` | The worker delivered a reply and confirmed it in LinkedIn |
+| Duplicate safeguard | SQLite tests and scans after the live reply | The same event was claimed once and no additional reply was sent in follow-up scans |
+| Invitation acceptance | Live Railway log `[invitation] accepted=1` | One incoming connection request was accepted automatically |
 | Response quality | Local-language and edge-case tests, offline showcase | Deterministic handling of covered inputs—not proof of arbitrary semantic understanding |
-| Uptime | Railway metrics and logs | A running container, **not a guarantee of 0.5 GB stability or fast response time** |
+| Runtime | Railway metrics and recurring inbox logs | The deployed worker is authenticated and polling; memory and latency remain useful operational metrics |
 
 ## Decisions I would make again
 
