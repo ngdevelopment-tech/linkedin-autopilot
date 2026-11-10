@@ -161,11 +161,15 @@ def main():
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch_persistent_context(
             PROFILE, headless=False, viewport={"width":1440,"height":900},
-            args=["--disable-notifications"]
+            args=["--disable-notifications", "--disable-gpu", "--renderer-process-limit=2"]
         )
+        # Suppress heavy media downloads while keeping scripts, CSS and interactions available.
+        browser.route("**/*", lambda route: route.abort() if route.request.resource_type in ("image", "media", "font") else route.continue_())
         page = browser.pages[0] if browser.pages else browser.new_page()
+        print("[startup] Chromium launched; opening LinkedIn", flush=True)
         page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=30000)
         if UNATTENDED:
+            print("[session] Waiting for LinkedIn authenticated navigation", flush=True)
             started = time.monotonic()
             while time.monotonic() - started < LOGIN_TIMEOUT:
                 if not any(x in page.url.lower() for x in ("/login", "/checkpoint", "/authwall", "/signup")) and page.locator("nav.global-nav, header.global-nav").count():
