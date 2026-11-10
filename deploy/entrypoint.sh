@@ -4,13 +4,27 @@ set -Eeuo pipefail
 export DISPLAY=:99
 mkdir -p /data/browser /data/state
 chown -R pwuser:pwuser /data
-runuser -u pwuser -- Xvfb :99 -screen 0 1440x900x24 -nolisten tcp &
-sleep 1
+# Create a private X11 socket directory and start a fresh display.
+mkdir -p /tmp/.X11-unix
+chmod 1777 /tmp/.X11-unix
+if [[ -e /tmp/.X99-lock ]] && ! pgrep -x Xvfb >/dev/null; then rm -f /tmp/.X99-lock; fi
+if ! pgrep -x Xvfb >/dev/null; then
+  runuser -u pwuser -- Xvfb :99 -screen 0 1440x900x24 -nolisten tcp &
+fi
+for attempt in $(seq 1 30); do
+  if runuser -u pwuser -- xdpyinfo -display :99 >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+if ! runuser -u pwuser -- xdpyinfo -display :99 >/dev/null 2>&1; then
+  echo "[startup] Xvfb did not become ready" >&2
+  exit 1
+fi
+echo "[startup] X display :99 ready" >&2
 runuser -u pwuser -- fluxbox >/dev/null 2>&1 &
 
 if [[ -n "${BROWSER_ACCESS_PASSWORD:-}" ]]; then
-  x11vnc -noshm -display :99 -rfbport 5900 -localhost -nopw -forever -shared -o /tmp/x11vnc.log &
-  websockify --web=/usr/share/novnc/ 127.0.0.1:6080 localhost:5900 > /tmp/websockify.log 2>&1 &
+  x11vnc -noshm -display :99 -rfbport 5901 -localhost -nopw -forever -shared -o /tmp/x11vnc.log &
+  websockify --web=/usr/share/novnc/ 127.0.0.1:6080 localhost:5901 > /tmp/websockify.log 2>&1 &
   AUTH_HASH="$(openssl passwd -apr1 "${BROWSER_ACCESS_PASSWORD}")"
   printf '%s:%s\n' "${BROWSER_ACCESS_USER:-naim}" "$AUTH_HASH" >/tmp/browser.htpasswd
   chown root:www-data /tmp/browser.htpasswd
@@ -31,7 +45,7 @@ http {
   uwsgi_temp_path /tmp/nginx-uwsgi;
   scgi_temp_path /tmp/nginx-scgi;
   server {
-    listen ${PORT:-8080};
+    listen 8080;
     server_name _;
     add_header Cache-Control "no-store" always;
     location = /websockify {
@@ -59,7 +73,7 @@ http {
 }
 EOF
   nginx -c /tmp/browser-nginx.conf -g 'daemon off;' &
-  (sleep 3; echo "[browser] VNC diagnostics:" >&2; tail -n 22 /tmp/x11vnc.log /tmp/websockify.log >&2 || true; echo "[browser] local service probes:" >&2; /opt/venv/bin/python -c 'import socket; [(print(f"{h}:{p} "+str(socket.socket().connect_ex((h,p))),flush=True)) for h,p in [("127.0.0.1",5900),("127.0.0.1",6080)]]' >&2) &
+  (sleep 3; echo "[browser] VNC diagnostics:" >&2; tail -n 22 /tmp/x11vnc.log /tmp/websockify.log >&2 || true; echo "[browser] local service probes:" >&2; /opt/venv/bin/python -c 'import socket; [(print(f"{h}:{p} "+str(socket.socket().connect_ex((h,p))),flush=True)) for h,p in [("127.0.0.1",5901),("127.0.0.1",6080)]]' >&2) &
   echo "[browser] authenticated remote display enabled" >&2
 else
   echo "[browser] remote display disabled: configure BROWSER_ACCESS_PASSWORD" >&2
