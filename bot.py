@@ -167,7 +167,7 @@ def send_reply(page, answer):
             return True
     raise RuntimeError("Unconfirmed send; message left pending for manual inspection")
 
-def inbox_pass(page, state, baseline=False):
+def inbox_pass(page, state, baseline=False, previewed=None):
     threads = sorted(get_threads(page), key=lambda item: not item["unread"])
     print(f"[inbox] pass baseline={baseline} conversation_count={len(threads)}", flush=True)
     for item in threads[:MAX_THREADS]:
@@ -200,11 +200,16 @@ def inbox_pass(page, state, baseline=False):
             if baseline:
                 state.mark(key, "baseline")
                 continue
+            # Preview an inbound event only once per worker process to avoid repeated API calls.
+            if DRY and previewed is not None and key in previewed:
+                continue
             reply = generate_reply(last["text"], events[:-1][-6:], last["attachment"])
             fresh = thread_messages(page)
             if len(fresh) != len(events) or not fresh or fresh[-1]["direction"] != "inbound" or fresh[-1]["text"] != last["text"] or event_identity(fresh) != identity:
                 continue
             if DRY:
+                if previewed is not None:
+                    previewed.add(key)
                 print("[dry-run] Inbound message identified; reply not sent", flush=True)
                 continue
             # Atomic per-message claim is durable even if Send confirmation fails.
@@ -293,10 +298,11 @@ def main():
             print("[startup] One-time baseline complete; monitoring new inbound messages", flush=True)
         elif BASELINE:
             print("[startup] Persistent baseline already complete; resuming monitoring", flush=True)
+        previewed = set()
         while True:
             try:
                 accept_invitations(page)
-                inbox_pass(page, state)
+                inbox_pass(page, state, previewed=previewed)
             except KeyboardInterrupt:
                 break
             except Exception as exc:
