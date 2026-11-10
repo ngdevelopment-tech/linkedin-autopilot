@@ -1,8 +1,4 @@
-"""Inbound-only LinkedIn browser worker.
-
-LinkedIn markup changes frequently; validate selectors against the live account
-before relying on the worker for a timed assessment.
-"""
+"""LinkedIn invitation and inbound messaging worker."""
 import os
 import sys
 import time
@@ -89,8 +85,6 @@ def get_threads(page):
     }""")
 
 def open_thread(page, item):
-    # Indexes are meaningful only in the inbox list. Reload the list when
-    # navigation to a previous thread removed it from the DOM.
     if item["href"]:
         page.goto(item["href"], wait_until="domcontentloaded", timeout=22000)
     else:
@@ -117,7 +111,6 @@ def send_reply(page, answer):
     if not button.count():
         raise RuntimeError("No enabled Send button")
     button.first.click(timeout=2000)
-    # Confirmation requires both matching text and an outbound UI indicator.
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
         page.wait_for_timeout(250)
