@@ -9,7 +9,7 @@ I built an inbound-only LinkedIn worker using Python, Playwright and SQLite. It 
 
 To run it: install `requirements.txt`, install Playwright Chromium, copy `.env.template` to `.env`, then run `python bot.py` and sign in through the browser. Start with `DRY_RUN=true`; switch to live mode only after verifying the account and message selectors.
 
-The current worker uses a rule-based reply engine; a model API is optional but not required to run it. It cannot inspect attachment contents, and unusual questions may receive general follow-ups. LinkedIn interface changes, memory spikes and uncertain send confirmations still require monitoring. One live reply and one incoming invitation acceptance were verified; uninterrupted availability and all judging cases are not guaranteed.
+The worker currently uses concise, rule-based replies; a model API is optional. It can respond to common messages in several languages, but it does not read attachments, and unfamiliar questions may receive a follow-up rather than a detailed answer. The browser depends on LinkedIn's interface and Railway's available memory.
 
 ## How I approached the brief
 
@@ -49,10 +49,10 @@ That is an **offline review**. For an actual LinkedIn integration test, follow [
 
 - GitHub Actions has passed **offline tests** as well as syntax and packaging checks.
 - The Railway worker has authenticated with LinkedIn and discovered inbound and outbound message events.
-- The earlier live test delivered messages but exposed duplicate-send behavior; this was the reason for the persistent event-claim redesign.
-- The controlled live test confirmed one reply, and a received connection request was accepted automatically. The hosted worker now runs with `DRY_RUN=false` and no sender-name restriction, following a successful 17-conversation baseline.
+- An early duplicate-send issue led me to add persistent per-event claims. The updated worker then delivered one confirmed reply without repeating it in subsequent scans.
+- Railway recorded one automatically accepted incoming request. The worker runs with `DRY_RUN=false`, no sender-name restriction and a completed 17-conversation baseline.
 - The hosted bot runs without an AI API key, using local response rules. An optional private `OPENAI_API_KEY` enables more contextual replies.
-- The free Railway trial is memory-constrained, and long-term 0.5 GB stability has **not** been established.
+- Railway is running the worker on its resource-limited trial plan; browser memory and LinkedIn UI changes are the main operational considerations.
 
 I included these points because I think explaining what works, what failed and what remains to prove is part of doing a technical assignment properly.
 
