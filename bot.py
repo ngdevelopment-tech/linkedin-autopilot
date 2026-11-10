@@ -316,6 +316,13 @@ def main():
                 if ACCEPT_INVITATIONS_ENABLED and now >= next_invitation_scan:
                     accept_invitations(page)
                     next_invitation_scan = time.monotonic() + INVITATION_POLL
+                    # The Network SPA can retain a large renderer heap after
+                    # switching areas. Close that tab before loading messaging.
+                    page.close()
+                    time.sleep(1)
+                    page = browser.new_page()
+                    page.goto("https://www.linkedin.com/messaging/", wait_until="domcontentloaded", timeout=22000)
+                    print("[session] Switched to a fresh messaging tab after invitation scan", flush=True)
                 inbox_pass(page, state, previewed=previewed)
                 browser_errors = 0
             except KeyboardInterrupt:
