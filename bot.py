@@ -87,7 +87,8 @@ def thread_messages(page):
 
 def accept_invitations(page):
     page.goto("https://www.linkedin.com/mynetwork/invitation-manager/received/", wait_until="domcontentloaded", timeout=25000)
-    page.wait_for_timeout(500)
+    # The invitation list appears after the first document load.
+    page.wait_for_timeout(1700)
     accepted = 0
     for _ in range(30):
         buttons = page.get_by_role("button", name="Accept", exact=True)
@@ -103,6 +104,8 @@ def accept_invitations(page):
         page.wait_for_timeout(300)
     if accepted:
         print(f"[invitation] accepted={accepted}", flush=True)
+    else:
+        print("[invitation] scan complete; no actionable Accept button found", flush=True)
     return accepted
 
 def sender_name(page):
