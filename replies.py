@@ -60,6 +60,10 @@ def fallback(text: str, has_attachment: bool = False) -> str:
         return "I'm based in Beirut, Lebanon."
     if any(k in low for k in ("what do you do", "your background", "what's your specialty", "your expertise", "what do you work on")):
         return "I work across full-stack development, iOS and mobile apps, and AI systems. What are you working on?"
+    if "mobile app" in low and any(k in low for k in ("ai", "machine learning", "artificial intelligence", "llm")):
+        return ("For an AI-powered app, I'd consider React Native for cross-platform, "
+                "a Python backend and a suitable model API. I work across mobile and AI systems, "
+                "so I'd choose the stack around the use case. What's the app meant to do?")
     if any(k in low for k in ("ios", "mobile app", "iphone app", "swift")):
         return "Yes, I work on iOS and mobile apps. What's the idea?"
     if any(k in low for k in ("website", "web app", "full stack", "backend", "frontend")):
