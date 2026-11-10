@@ -3,7 +3,7 @@ ENV PYTHONUNBUFFERED=1 DISPLAY=:99 BROWSER_PROFILE_DIR=/data/browser STATE_DB_PA
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3-venv xvfb fluxbox && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3-venv xvfb fluxbox nginx x11vnc novnc websockify openssl && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt ./
 RUN python -m venv /opt/venv && /opt/venv/bin/python -m pip install --no-cache-dir -r requirements.txt
 COPY bot.py replies.py storage.py ./
