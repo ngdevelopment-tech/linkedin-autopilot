@@ -1,25 +1,19 @@
-# Competition submission
+# Technical summary
 
-**Public source:** https://github.com/ngdevelopment-tech/linkedin-autopilot
+**Repository:** https://github.com/ngdevelopment-tech/linkedin-autopilot
 
 **LinkedIn profile:** https://www.linkedin.com/in/naim-gerges-892591271/
 
-## Description
+## Functionality
 
-A Python browser worker that checks incoming connection invitations and inbound LinkedIn conversations. It attempts to accept invitations and reply briefly in context. Message fingerprints are stored locally to reduce duplicate processing. Messages are never sent proactively.
+The service monitors received connection invitations and existing LinkedIn message threads. It accepts incoming invitations and responds to the latest eligible inbound message with a concise reply. Processing fingerprints and status are retained in SQLite to reduce duplicate handling. It does not initiate conversations, send connection invitations or perform bulk messaging.
 
-## Running it
+## Installation
 
-See [README.md](README.md) for local setup and [DEPLOYMENT.md](DEPLOYMENT.md) for cloud deployment considerations. A real browser login is required, and the worker must remain online until the assessment concludes.
+Install Python 3.11+, run `pip install -r requirements.txt`, install Playwright Chromium with `python -m playwright install chromium`, copy `.env.example` to `.env`, and start `python bot.py`. Complete LinkedIn sign-in in the Chromium window. Configure `DRY_RUN=false` to enable account-changing actions after validating selectors.
 
-## Current limitations
+## Limitations
 
-- Browser selectors depend on LinkedIn's current interface and require live verification.
-- Message sending uses UI confirmation; ambiguous sends remain pending instead of automatically retrying.
-- Media is recognized only as an attachment indicator; files and images are not interpreted.
-- Replies use an optional AI service; without its key, answers are basic fallbacks.
-- A remote Railway session needs a secure, private login path before unattended use.
-- Railway trial resource limits, uptime and LinkedIn access are not guaranteed.
-- This implementation is unofficial and may conflict with LinkedIn terms.
+The browser integration depends on LinkedIn's current interface. Attachments are detected without parsing their contents. Unconfirmed sends require inspection. The optional external response engine is needed for more specific conversational replies. Hosted use requires secure interactive browser sign-in and sufficient resources.
 
-**Do not claim the live test has passed until it has actually been run.**
+Detailed settings and architecture are documented in [README.md](README.md).
