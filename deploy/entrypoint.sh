@@ -8,7 +8,7 @@ sleep 1
 runuser -u pwuser -- fluxbox >/dev/null 2>&1 &
 
 if [[ -n "${BROWSER_ACCESS_PASSWORD:-}" ]]; then
-  x11vnc -display :99 -rfbport 5900 -localhost -nopw -forever -shared -o /tmp/x11vnc.log &
+  x11vnc -noshm -display :99 -rfbport 5900 -localhost -nopw -forever -shared -o /tmp/x11vnc.log &
   websockify --web=/usr/share/novnc/ 127.0.0.1:6080 localhost:5900 > /tmp/websockify.log 2>&1 &
   AUTH_HASH="$(openssl passwd -apr1 "${BROWSER_ACCESS_PASSWORD}")"
   printf '%s:%s\n' "${BROWSER_ACCESS_USER:-naim}" "$AUTH_HASH" >/tmp/browser.htpasswd
