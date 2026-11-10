@@ -47,7 +47,26 @@ EXTRACT_THREAD = r"""() => {
 }"""
 
 def thread_messages(page):
-    return page.evaluate(EXTRACT_THREAD)
+    events = page.evaluate(EXTRACT_THREAD)
+    if events and events[-1]["direction"] == "unknown":
+        structure = page.evaluate("""() => {
+          const n = [...document.querySelectorAll('.msg-s-message-list__event')].slice(-1)[0];
+          if (!n) return {reason:'no primary event'};
+          const g = n.closest('.msg-s-message-group');
+          const p = n.parentElement;
+          const keys = el => el ? [...el.attributes].filter(a =>
+            /^(data-|aria-)/.test(a.name)).map(a=>a.name).slice(0,12) : [];
+          return {
+            nodeClass: String(n.className||'').slice(0,120),
+            groupClass: String(g?.className||'').slice(0,120),
+            parentClass: String(p?.className||'').slice(0,120),
+            nodeAttrNames: keys(n), groupAttrNames: keys(g),
+            profileLinkClasses: [...(g?.querySelectorAll('[class*="profile-link"]')||[])]
+              .map(e=>String(e.className||'').slice(0,110)).slice(0,3)
+          };
+        }""")
+        print(f"[inbox] direction diagnostics={structure}", flush=True)
+    return events
 
 def accept_invitations(page):
     page.goto("https://www.linkedin.com/mynetwork/invitation-manager/received/", wait_until="domcontentloaded", timeout=25000)
