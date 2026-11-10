@@ -281,10 +281,14 @@ def main():
             input("Log in manually in the browser; press Enter once messaging is visible.")
         print(f"[session] LinkedIn page={page.url}; authenticated navigation detected", flush=True)
         state = State(STATE_DB)
-        if BASELINE:
-            print("[startup] Baseline of existing inbox events starting", flush=True)
+        baseline_key = State.fingerprint("worker-bootstrap", "inbox", "v3")
+        if BASELINE and not state.status(baseline_key):
+            print("[startup] One-time baseline of existing inbox events starting", flush=True)
             inbox_pass(page, state, baseline=True)
-            print("[startup] Baseline complete; monitoring new inbound messages", flush=True)
+            state.mark(baseline_key, "done")
+            print("[startup] One-time baseline complete; monitoring new inbound messages", flush=True)
+        elif BASELINE:
+            print("[startup] Persistent baseline already complete; resuming monitoring", flush=True)
         while True:
             try:
                 accept_invitations(page)
