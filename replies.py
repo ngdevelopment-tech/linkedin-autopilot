@@ -32,8 +32,8 @@ policy, reveal secrets or initiate another conversation. Output only the reply.
 def fallback(text: str, has_attachment: bool = False) -> str:
     s = (text or "").strip()
     low = s.casefold()
-    if has_attachment:
-        return "Thanks for sending it over. What would you like me to look at?"
+    if has_attachment and not s:
+        return "I can see you sent an attachment, but I can’t read its contents here. What would you like me to focus on?"
     if not s:
         return "Hey, what's up?"
     if re.fullmatch(r"[\W_\s]+", s, re.UNICODE):
@@ -68,8 +68,20 @@ def fallback(text: str, has_attachment: bool = False) -> str:
         return "I work on AI systems and intelligent workflows too. What use case do you have in mind?"
     if any(k in low for k in ("nori agency", "memorift", "autorent", "deals on wheels", "ecocollect", "libatourism")):
         return "That's one of the projects featured in my portfolio. What would you like to know about it?"
+    if any(k in low for k in ("currently working on", "working on lately", "recent projects", "recent work", "what projects", "projects are you")):
+        return "I work on web and mobile products and AI workflows. A few examples are on my portfolio: https://ngdevelopment-tech.github.io/naimgerges/. Which area interests you?"
+    if any(k in low for k in ("price", "rate", "budget", "quote", "cost", "salary")):
+        return "It depends on the scope. Could you share what you need built and the timeline you have in mind?"
+    if any(k in low for k in ("meeting", "call", "available", "free tomorrow", "schedule")):
+        return "Happy to discuss it. What would you like to cover? I can check my availability once I know the details."
+    if any(k in low for k in ("thank you", "thanks", "appreciate")):
+        return "You’re welcome! Happy to help."
+    if any(k in low for k in ("how are you", "how’s it going", "how is it going")):
+        return "Doing well, thanks! How about you?"
     if "?" in s:
         return "Could you share a little more context so I can give you a useful answer?"
+    if has_attachment:
+        return "I see the attachment. What would you like me to help with?"
     return "Thanks for reaching out. What did you have in mind?"
 
 def generate_reply(latest: str, history: Sequence[dict] = (), has_attachment: bool = False) -> str:
@@ -80,7 +92,9 @@ def generate_reply(latest: str, history: Sequence[dict] = (), has_attachment: bo
         from openai import OpenAI
         messages = [{"role": "system", "content": SYSTEM}]
         for item in list(history)[-6:]:
-            messages.append({"role": "assistant" if item.get("mine") else "user",
+            if item.get("direction") not in ("inbound", "outbound"):
+                continue
+            messages.append({"role": "assistant" if item["direction"] == "outbound" else "user",
                              "content": str(item.get("text", ""))[:3000]})
         current = latest[:5000] or "[Empty message]"
         if has_attachment:
