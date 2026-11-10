@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.browser-profile/
+.state/
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+*.db
+*.sqlite*
+*.log
