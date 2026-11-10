@@ -13,7 +13,7 @@ CASES = (
     ("Arabic", "مرحبا، شو شغلك؟", False),
     ("French", "Bonjour, tu fais quoi ?", False),
     ("Spanish", "Hola!", False),
-    ("Link", "Can you check https://example.com?", False),
+    ("Link", "Can you check https://github.com?", False),
     ("Attachment", "", True),
     ("Long message", "I have a project. " * 120, False),
     ("Rude", "You're stupid.", False),
@@ -30,7 +30,7 @@ def main():
         print(f"  Incoming: {text[:85] or '(attachment only)'}")
         print(f"  Reply:    {fallback(text, attached)}")
         assert event_identity([event])
-    print("\nAll example cases completed. Real inbox automation requires a signed-in browser.")
+    print("\nAll reply scenarios completed. Real inbox automation requires a signed-in browser.")
 
 
 if __name__ == "__main__":
