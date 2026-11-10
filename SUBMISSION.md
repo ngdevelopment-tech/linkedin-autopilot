@@ -39,7 +39,7 @@ That is an **offline review**. For an actual LinkedIn integration test, follow [
 
 ## Verification status
 
-- GitHub Actions has passed **35 offline tests** as well as syntax and packaging checks.
+- GitHub Actions has passed **offline tests** as well as syntax and packaging checks.
 - The Railway worker has authenticated with LinkedIn and discovered inbound and outbound message events.
 - The earlier live test delivered messages but exposed duplicate-send behavior; this was the reason for the persistent event-claim redesign.
 - The current deployment remains in `DRY_RUN=true` pending a clean live replay and invitation-acceptance test.
