@@ -1,0 +1,11 @@
+FROM mcr.microsoft.com/playwright/python:v1.58.0-noble
+ENV PYTHONUNBUFFERED=1 DISPLAY=:99 BROWSER_PROFILE_DIR=/data/browser STATE_DB_PATH=/data/state/messages.db UNATTENDED=true
+WORKDIR /app
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xvfb x11vnc fluxbox novnc websockify && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY bot.py replies.py storage.py ./
+COPY deploy/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh && mkdir -p /data && chown -R pwuser:pwuser /data /app
+USER pwuser
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
