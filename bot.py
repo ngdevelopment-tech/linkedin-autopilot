@@ -32,11 +32,11 @@ EXTRACT_THREAD = r"""() => {
    const group = node.querySelector('.msg-s-message-group') || node.closest('.msg-s-message-group');
    const combined = String(node.className || '') + ' ' + String(group?.className || '');
    const attr = (node.getAttribute('data-message-direction') || group?.getAttribute('data-message-direction') || '').toLowerCase();
-   const sender = group?.querySelector('.msg-s-message-group__profile-link');
+   const sender = node.querySelector('.msg-s-message-group__profile-link') || group?.querySelector('.msg-s-message-group__profile-link');
    const senderCls = String(sender?.className || '');
    const senderHref = (sender?.getAttribute('href') || '').toLowerCase();
-   const ownProfile = /\/in\/naim-gerges-892591271\/?/.test(senderHref);
-   const otherProfile = /\/in\/[^/?]+/.test(senderHref) && !ownProfile;
+   const ownProfile = /\/in\/naim-gerges-892591271\/?/.test(senderHref) ||\n       (sender?.textContent || '').trim().toLowerCase() === 'naim gerges';
+   const otherProfile = (/\/in\/[^/?]+/.test(senderHref) ||\n       !!(sender?.textContent || '').trim()) && !ownProfile;
    const isOutgoing = ownProfile || /--outbound|--self|outgoing|from-me/i.test(combined) ||
        attr === 'outbound' || /--outbound/.test(senderCls);
    const isIncoming = otherProfile || /--inbound|incoming|from-other/i.test(combined) ||
